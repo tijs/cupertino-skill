@@ -5,30 +5,6 @@
 - [x] Add info in README about bundled resources (packages catalog, sample code catalog)
 - [x] Add info in README about SQLite not working on network drives (NFS/SMB)
 
-### Complete `cupertino save` Implementation ✅ DONE
-
-**Priority 1: Make metadata.json optional** ✅ COMPLETED
-- [x] Write tests for directory scanning without metadata.json
-- [x] Make metadata optional in SearchIndexBuilder (CrawlMetadata → CrawlMetadata?)
-- [x] Add scanDocsDirectory() method to scan docs/ folder structure
-- [x] Update SaveCommand to not require metadata.json
-- [x] Extract framework from folder path (docs/{framework}/{page}.md)
-- [x] Generate URIs, content hashes, and timestamps on-the-fly
-
-**Priority 2: Sample Code Indexing** ✅ COMPLETED
-- [x] Write tests for sample code catalog indexing
-- [x] Add indexSampleCodeCatalog() to SearchIndexBuilder
-- [x] Wire up in buildIndex()
-- [x] Add sampleCodeCount() and searchSampleCode() methods
-- **Result:** 606 sample code entries indexed from bundled catalog
-
-**Priority 3: Package Catalog Indexing** ✅ COMPLETED
-- [x] Write tests for package catalog indexing
-- [x] Add indexPackage() method to SearchIndex.swift
-- [x] Add indexPackagesCatalog() to SearchIndexBuilder
-- [x] Wire up in buildIndex()
-- [x] Add packageCount() and searchPackages() methods
-- **Result:** 9,699 Swift packages indexed from bundled catalog
 
 **Impact:**
 - `cupertino save` now works WITHOUT metadata.json (uses directory scanning)
@@ -52,6 +28,8 @@
 - [ ] Fix: fetch authenticate does not work (never opens Safari browser)
   - Investigate how other terminal commands handle browser auth
   - Search GitHub for code examples
+  
+- [ ] Add `cupertino-mcp` additional binary for compatibility with non-apple OS-es
 
 ## Search & Indexing
 
