@@ -1,4 +1,4 @@
-# Makefile for Docsucker
+# Makefile for Cupertino
 # Apple Documentation Crawler & MCP Server
 
 # Configuration
@@ -83,7 +83,7 @@ build: build-release
 
 ## build-debug: Build in debug mode
 build-debug:
-	@echo "$(BOLD)$(GREEN)Building Docsucker (debug)...$(RESET)"
+	@echo "$(BOLD)$(GREEN)Building Cupertino (debug)...$(RESET)"
 	$(SWIFT) build --product $(PRODUCT_NAME_CLI)
 	$(SWIFT) build --product $(PRODUCT_NAME_MCP)
 	@echo "$(GREEN)✓ Build complete$(RESET)"
@@ -92,7 +92,7 @@ build-debug:
 
 ## build-release: Build in release mode (optimized)
 build-release:
-	@echo "$(BOLD)$(GREEN)Building Docsucker (release)...$(RESET)"
+	@echo "$(BOLD)$(GREEN)Building Cupertino (release)...$(RESET)"
 	$(SWIFT) build $(SWIFT_BUILD_FLAGS) --product $(PRODUCT_NAME_CLI)
 	$(SWIFT) build $(SWIFT_BUILD_FLAGS) --product $(PRODUCT_NAME_MCP)
 	@echo "$(GREEN)✓ Build complete$(RESET)"
@@ -275,7 +275,7 @@ watch:
 
 ## version: Show version information
 version:
-	@echo "$(BOLD)Docsucker Version Information$(RESET)"
+	@echo "$(BOLD)Cupertino Version Information$(RESET)"
 	@if [ -f $(BUILD_DIR)/release/$(PRODUCT_NAME_CLI) ]; then \
 		echo "  CLI: $$($(BUILD_DIR)/release/$(PRODUCT_NAME_CLI) --version)"; \
 		echo "  MCP: $$($(BUILD_DIR)/release/$(PRODUCT_NAME_MCP) --version)"; \
