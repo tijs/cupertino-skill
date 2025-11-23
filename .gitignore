@@ -49,3 +49,7 @@ Tasks/.build/
 # Build artefacts (global)
 Build/
 **/Build/
+
+# Ignore local AI rule system
+.ai-agent-rules
+AGENTS.md
