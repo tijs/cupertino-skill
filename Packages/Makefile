@@ -39,7 +39,7 @@ all: build
 
 ## help: Show this help message
 help:
-	@echo "$(BOLD)Docsucker - Makefile Help$(RESET)"
+	@echo "$(BOLD)Cupertino - Makefile Help$(RESET)"
 	@echo ""
 	@echo "$(BOLD)Available targets:$(RESET)"
 	@echo "  $(GREEN)make build$(RESET)         - Build both executables (release mode)"
