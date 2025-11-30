@@ -200,122 +200,15 @@ These catalogs are indexed during `cupertino save` and enable instant search wit
 
 ## Commands
 
-### Main Command Structure
+| Command | Description |
+|---------|-------------|
+| `cupertino` | Start MCP server (default) |
+| `cupertino serve` | Start MCP server |
+| `cupertino fetch` | Download documentation |
+| `cupertino save` | Build search index |
+| `cupertino doctor` | Check server health |
 
-```bash
-cupertino                    # defaults to: cupertino serve
-cupertino serve              # start MCP server
-cupertino doctor             # check server health
-cupertino fetch              # fetch documentation and resources
-cupertino save               # build search index
-```
-
-### fetch - Download Documentation
-
-```bash
-# Fetch Apple developer documentation
-cupertino fetch --type docs --max-pages 15000
-
-# Fetch Swift Evolution proposals
-cupertino fetch --type evolution
-
-# Fetch Swift.org documentation
-cupertino fetch --type swift
-
-# Fetch priority Swift packages
-cupertino fetch --type packages
-
-# Fetch sample code (requires authentication)
-cupertino fetch --type code --authenticate
-
-# Resume interrupted fetch
-cupertino fetch --type docs --resume
-```
-
-**Options:**
-- `--type` - Content type: docs, swift, evolution, packages, package-docs, code, all
-- `--start-url` - Custom starting URL
-- `--max-pages` - Maximum pages to crawl (default: 15000)
-- `--max-depth` - Maximum link depth (default: 15)
-- `--output-dir` - Output directory
-- `--allowed-prefixes` - Restrict crawling to specific URL prefixes
-- `--force` - Force re-crawl all pages
-- `--resume` - Resume from previous session
-- `--only-accepted` - Only fetch accepted proposals (for evolution type)
-
-### save - Build Search Index
-
-```bash
-# Build index from default locations
-cupertino save
-
-# Build from custom directory
-cupertino save --docs-dir ./my-docs --search-db ./my-search.db
-
-# Rebuild index (clear and rebuild)
-cupertino save --clear
-
-# Index multiple sources
-cupertino save \
-  --docs-dir ./apple-docs \
-  --evolution-dir ./evolution \
-  --swift-org-dir ./swift-org \
-  --packages-dir ./packages
-```
-
-**Options:**
-- `--base-dir` - Base directory (auto-fills all paths from standard structure)
-- `--docs-dir` - Directory containing Apple documentation
-- `--evolution-dir` - Directory containing Swift Evolution proposals
-- `--swift-org-dir` - Directory containing Swift.org documentation
-- `--packages-dir` - Directory containing package READMEs
-- `--metadata-file` - Path to metadata.json file (optional - will scan directory if missing)
-- `--search-db` - Output path for search database
-- `--clear` - Clear existing index before building
-
-**Important Notes:**
-- **Network Drives:** SQLite databases do NOT work reliably on network drives (NFS/SMB) due to file locking limitations. Always place the search database (`--search-db`) on a local filesystem. Documentation files (`--docs-dir`) can be on network storage.
-- **metadata.json:** Optional file created by `cupertino fetch`. If missing, the indexer will scan the directory structure directly. Resume functionality requires metadata.json.
-
-### serve - Start MCP Server
-
-```bash
-# Start server with defaults
-cupertino serve
-
-# Or simply
-cupertino
-
-# Custom paths
-cupertino serve \
-  --docs-dir ~/my-docs \
-  --evolution-dir ~/evolution \
-  --search-db ~/search.db
-```
-
-**Options:**
-- `--docs-dir` - Apple documentation directory (default: ~/.cupertino/docs)
-- `--evolution-dir` - Swift Evolution directory (default: ~/.cupertino/swift-evolution)
-- `--search-db` - Search database path (default: ~/.cupertino/search.db)
-
-### doctor - Health Check
-
-```bash
-# Check MCP server configuration
-cupertino doctor
-
-# Custom paths
-cupertino doctor \
-  --docs-dir ~/my-docs \
-  --search-db ~/search.db
-```
-
-Verifies:
-- Server initialization
-- Documentation directories
-- Search database
-- Resource providers
-- Tool providers
+See [docs/commands/](docs/commands/) for detailed usage and options.
 
 ## Architecture
 
@@ -497,11 +390,17 @@ Each command has detailed documentation:
 
 ## Contributing
 
-Contributions are welcome! Please read [DEVELOPMENT.md](DEVELOPMENT.md) for:
-- Local build setup
-- Development workflow
-- Testing guidelines
-- Code style (SwiftFormat, SwiftLint)
+Issues and pull requests are welcome! I'd love to hear how you're using Cupertino with your AI workflow.
+
+For questions and discussion, use [GitHub Discussions](https://github.com/mihaelamj/cupertino/discussions).
+
+I prefer collaboration over competition — if you're working on something similar, let's find ways to work together.
+
+Don't hesitate to submit a PR because of code style. I'd rather have your contribution than perfect formatting.
+
+By participating in this project you agree to abide by the [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/).
+
+For development setup, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Project Status
 
