@@ -93,16 +93,6 @@ cupertino search "Array" --format json
 cupertino search "SwiftUI" --format markdown
 ```
 
-### -v, --verbose
-
-Show extended information including summary, score, and word count.
-
-**Example:**
-```bash
-cupertino search "View" --verbose
-cupertino search "async" -v
-```
-
 ## Prerequisites
 
 Before searching, you need a populated search index:
@@ -187,7 +177,7 @@ cupertino search "Observable" --format json --limit 3
 ### Markdown Output
 
 ```bash
-cupertino search "async" --format markdown --verbose
+cupertino search "async" --format markdown
 ```
 
 **Output:**
@@ -201,30 +191,8 @@ Found 20 result(s).
 - **Source:** apple-docs
 - **Framework:** swift
 - **URI:** `apple-docs://swift/documentation_swift_concurrency`
-- **Score:** 15.32
-- **Word Count:** 2456
 
 > Perform asynchronous and parallel operations...
-```
-
-### Verbose Output
-
-```bash
-cupertino search "URLSession" --verbose --limit 3
-```
-
-**Output:**
-```
-Found 3 result(s) for 'URLSession':
-
-[1] URLSession | Apple Developer Documentation
-    Source: apple-docs | Framework: foundation
-    URI: apple-docs://foundation/documentation_foundation_urlsession
-    Summary: An object that coordinates a group of related network data transfer tasks.
-    Score: 18.75
-    Word Count: 3421
-
-...
 ```
 
 ### Combined Filters
@@ -315,6 +283,7 @@ No results found for 'nonexistent query'
 
 ## See Also
 
+- [read](../read/) - Read full document by URI (when search results are truncated)
 - [source/](source/) - Documentation sources (apple-docs, swift-evolution, etc.)
 - [serve](../serve/) - Start MCP server with search tools
 - [save](../save/) - Build search index

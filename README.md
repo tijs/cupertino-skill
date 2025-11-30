@@ -211,6 +211,7 @@ These catalogs are indexed during `cupertino save` and enable instant search wit
 | `cupertino fetch` | Download documentation |
 | `cupertino save` | Build search index |
 | `cupertino search` | Search documentation from CLI |
+| `cupertino read` | Read full document by URI |
 | `cupertino doctor` | Check server health |
 
 See [docs/commands/](docs/commands/) for detailed usage and options.
@@ -410,7 +411,7 @@ For development setup, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Project Status
 
-**Version:** 0.1.5
+**Version:** 0.1.6
 **Status:** ✅ Production Ready
 
 - ✅ All core functionality working

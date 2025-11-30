@@ -49,12 +49,6 @@ struct SearchCommand: AsyncParsableCommand {
     )
     var format: OutputFormat = .text
 
-    @Flag(
-        name: .shortAndLong,
-        help: "Show full content (expanded output)"
-    )
-    var verbose: Bool = false
-
     mutating func run() async throws {
         // Resolve database path
         let dbPath = resolveSearchDbPath()
@@ -116,10 +110,13 @@ struct SearchCommand: AsyncParsableCommand {
             print("    Source: \(result.source) | Framework: \(result.framework)")
             print("    URI: \(result.uri)")
 
-            if verbose {
-                print("    Summary: \(result.summary)")
-                print("    Score: \(String(format: "%.2f", result.score))")
-                print("    Word Count: \(result.wordCount)")
+            // Show summary
+            if !result.summary.isEmpty {
+                print("    \(result.summary)")
+                if result.summaryTruncated {
+                    print("    ...")
+                    print("    [truncated at ~\(result.summary.split(separator: " ").count) words] Full document: \(result.uri)")
+                }
             }
 
             print()
@@ -155,9 +152,7 @@ struct SearchCommand: AsyncParsableCommand {
             print("- **Framework:** \(result.framework)")
             print("- **URI:** `\(result.uri)`")
 
-            if verbose {
-                print("- **Score:** \(String(format: "%.2f", result.score))")
-                print("- **Word Count:** \(result.wordCount)")
+            if !result.summary.isEmpty {
                 print("\n> \(result.summary)")
             }
 

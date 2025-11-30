@@ -544,8 +544,8 @@ extension Shared {
         /// Content size and length limits
         public enum ContentLimit {
             /// Maximum length for summary extraction (characters)
-            /// Rationale: ~2-3 sentences, readable preview length
-            public static let summaryMaxLength: Int = 500
+            /// Rationale: Enough for declaration + overview of properties/methods
+            public static let summaryMaxLength: Int = 1500
 
             /// Maximum content preview length (characters)
             /// Rationale: Shorter preview for quick display
