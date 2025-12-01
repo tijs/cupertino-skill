@@ -24,7 +24,8 @@ extension Search {
         /// - 2: Added doc_code_examples and doc_code_fts tables
         /// - 3: Added json_data column to docs_metadata for full JSON storage
         /// - 4: Added source field to docs_fts and docs_metadata for source-based filtering
-        public static let schemaVersion: Int32 = 4
+        /// - 5: Added language field to docs_fts and docs_metadata (BREAKING: requires database rebuild)
+        public static let schemaVersion: Int32 = 5
 
         private var database: OpaquePointer?
         private let dbPath: URL
@@ -137,6 +138,18 @@ extension Search {
                 // Delete the database file and run cupertino save to rebuild.
                 try await migrateToVersion4()
             }
+
+            if currentVersion < 5 {
+                // Version 4 -> 5: Added language field to docs_fts and docs_metadata
+                // BREAKING CHANGE: FTS5 tables cannot have columns added.
+                // Database must be deleted and rebuilt with 'cupertino save'.
+                throw SearchError.sqliteError(
+                    "Database schema version \(currentVersion) requires migration to version 5. " +
+                        "This is a breaking change that adds the 'language' field. " +
+                        "Please delete the database and run 'cupertino save' to rebuild: " +
+                        "rm ~/.cupertino/search.db && cupertino save"
+                )
+            }
         }
 
         private func migrateToVersion4() async throws {
@@ -178,11 +191,13 @@ extension Search {
             // FTS5 virtual table for full-text search
             // source: high-level category (apple-docs, swift-evolution, swift-org, swift-book)
             // framework: specific framework (swiftui, foundation, etc.) - same as source for non-apple-docs
+            // language: programming language (swift, objc) - extracted from Apple's interfaceLanguage
             let sql = """
             CREATE VIRTUAL TABLE IF NOT EXISTS docs_fts USING fts5(
                 uri,
                 source,
                 framework,
+                language,
                 title,
                 content,
                 summary,
@@ -193,6 +208,7 @@ extension Search {
                 uri TEXT PRIMARY KEY,
                 source TEXT NOT NULL DEFAULT 'apple-docs',
                 framework TEXT NOT NULL,
+                language TEXT NOT NULL DEFAULT 'swift',
                 file_path TEXT NOT NULL,
                 content_hash TEXT NOT NULL,
                 last_crawled INTEGER NOT NULL,
@@ -205,6 +221,7 @@ extension Search {
 
             CREATE INDEX IF NOT EXISTS idx_source ON docs_metadata(source);
             CREATE INDEX IF NOT EXISTS idx_framework ON docs_metadata(framework);
+            CREATE INDEX IF NOT EXISTS idx_language ON docs_metadata(language);
             CREATE INDEX IF NOT EXISTS idx_source_type ON docs_metadata(source_type);
 
             -- Structured documentation fields (extracted from JSON for querying)
@@ -650,6 +667,7 @@ extension Search {
         ///   - uri: Document URI
         ///   - source: High-level source category (apple-docs, swift-evolution, swift-org, swift-book)
         ///   - framework: Specific framework (swiftui, foundation, etc.) - nil for non-apple-docs sources
+        ///   - language: Programming language (swift, objc) - defaults to swift if not provided
         ///   - title: Document title
         ///   - content: Full document content
         ///   - filePath: Path to source file
@@ -662,6 +680,7 @@ extension Search {
             uri: String,
             source: String,
             framework: String?,
+            language: String? = nil,
             title: String,
             content: String,
             filePath: String,
@@ -682,10 +701,13 @@ extension Search {
             // For non-apple-docs sources, framework can be nil or empty
             let effectiveFramework = framework ?? ""
 
+            // Determine language with heuristics fallback
+            let effectiveLanguage = language ?? detectLanguage(from: content)
+
             // Insert into FTS5 table
             let ftsSql = """
-            INSERT OR REPLACE INTO docs_fts (uri, source, framework, title, content, summary)
-            VALUES (?, ?, ?, ?, ?, ?);
+            INSERT OR REPLACE INTO docs_fts (uri, source, framework, language, title, content, summary)
+            VALUES (?, ?, ?, ?, ?, ?, ?);
             """
 
             var statement: OpaquePointer?
@@ -699,9 +721,10 @@ extension Search {
             sqlite3_bind_text(statement, 1, (uri as NSString).utf8String, -1, nil)
             sqlite3_bind_text(statement, 2, (source as NSString).utf8String, -1, nil)
             sqlite3_bind_text(statement, 3, (effectiveFramework as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(statement, 4, (title as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(statement, 5, (content as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(statement, 6, (summary as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 4, (effectiveLanguage as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 5, (title as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 6, (content as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 7, (summary as NSString).utf8String, -1, nil)
 
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 let errorMessage = String(cString: sqlite3_errmsg(database))
@@ -724,7 +747,7 @@ extension Search {
 
             // Insert metadata with JSON data
             // swiftlint:disable:next line_length
-            let metaSql = "INSERT OR REPLACE INTO docs_metadata (uri, source, framework, file_path, content_hash, last_crawled, word_count, source_type, package_id, json_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
+            let metaSql = "INSERT OR REPLACE INTO docs_metadata (uri, source, framework, language, file_path, content_hash, last_crawled, word_count, source_type, package_id, json_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
 
             var metaStatement: OpaquePointer?
             defer { sqlite3_finalize(metaStatement) }
@@ -737,19 +760,20 @@ extension Search {
             sqlite3_bind_text(metaStatement, 1, (uri as NSString).utf8String, -1, nil)
             sqlite3_bind_text(metaStatement, 2, (source as NSString).utf8String, -1, nil)
             sqlite3_bind_text(metaStatement, 3, (effectiveFramework as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(metaStatement, 4, (filePath as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(metaStatement, 5, (contentHash as NSString).utf8String, -1, nil)
-            sqlite3_bind_int64(metaStatement, 6, Int64(lastCrawled.timeIntervalSince1970))
-            sqlite3_bind_int(metaStatement, 7, Int32(wordCount))
-            sqlite3_bind_text(metaStatement, 8, (sourceType as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(metaStatement, 4, (effectiveLanguage as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(metaStatement, 5, (filePath as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(metaStatement, 6, (contentHash as NSString).utf8String, -1, nil)
+            sqlite3_bind_int64(metaStatement, 7, Int64(lastCrawled.timeIntervalSince1970))
+            sqlite3_bind_int(metaStatement, 8, Int32(wordCount))
+            sqlite3_bind_text(metaStatement, 9, (sourceType as NSString).utf8String, -1, nil)
 
             if let packageId {
-                sqlite3_bind_int(metaStatement, 9, Int32(packageId))
+                sqlite3_bind_int(metaStatement, 10, Int32(packageId))
             } else {
-                sqlite3_bind_null(metaStatement, 9)
+                sqlite3_bind_null(metaStatement, 10)
             }
 
-            sqlite3_bind_text(metaStatement, 10, (finalJsonData as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(metaStatement, 11, (finalJsonData as NSString).utf8String, -1, nil)
 
             guard sqlite3_step(metaStatement) == SQLITE_DONE else {
                 let errorMessage = String(cString: sqlite3_errmsg(database))
@@ -776,14 +800,17 @@ extension Search {
             let summary = extractSummary(from: content)
             let wordCount = content.split(separator: " ").count
 
+            // Get language from page or use heuristics
+            let effectiveLanguage = page.language ?? detectLanguage(from: content)
+
             guard let database else {
                 throw SearchError.databaseNotInitialized
             }
 
             // Insert into FTS5 table
             let ftsSql = """
-            INSERT OR REPLACE INTO docs_fts (uri, source, framework, title, content, summary)
-            VALUES (?, ?, ?, ?, ?, ?);
+            INSERT OR REPLACE INTO docs_fts (uri, source, framework, language, title, content, summary)
+            VALUES (?, ?, ?, ?, ?, ?, ?);
             """
 
             var statement: OpaquePointer?
@@ -797,9 +824,10 @@ extension Search {
             sqlite3_bind_text(statement, 1, (uri as NSString).utf8String, -1, nil)
             sqlite3_bind_text(statement, 2, (source as NSString).utf8String, -1, nil)
             sqlite3_bind_text(statement, 3, (framework as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(statement, 4, (page.title as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(statement, 5, (content as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(statement, 6, (summary as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 4, (effectiveLanguage as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 5, (page.title as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 6, (content as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 7, (summary as NSString).utf8String, -1, nil)
 
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 let errorMessage = String(cString: sqlite3_errmsg(database))
@@ -809,8 +837,8 @@ extension Search {
             // Insert metadata with json_data
             let metaSql = """
             INSERT OR REPLACE INTO docs_metadata
-            (uri, source, framework, file_path, content_hash, last_crawled, word_count, source_type, json_data)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+            (uri, source, framework, language, file_path, content_hash, last_crawled, word_count, source_type, json_data)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """
 
             var metaStatement: OpaquePointer?
@@ -824,12 +852,13 @@ extension Search {
             sqlite3_bind_text(metaStatement, 1, (uri as NSString).utf8String, -1, nil)
             sqlite3_bind_text(metaStatement, 2, (source as NSString).utf8String, -1, nil)
             sqlite3_bind_text(metaStatement, 3, (framework as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(metaStatement, 4, (page.url.absoluteString as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(metaStatement, 5, (page.contentHash as NSString).utf8String, -1, nil)
-            sqlite3_bind_int64(metaStatement, 6, Int64(page.crawledAt.timeIntervalSince1970))
-            sqlite3_bind_int(metaStatement, 7, Int32(wordCount))
-            sqlite3_bind_text(metaStatement, 8, (page.source.rawValue as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(metaStatement, 9, (jsonData as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(metaStatement, 4, (effectiveLanguage as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(metaStatement, 5, (page.url.absoluteString as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(metaStatement, 6, (page.contentHash as NSString).utf8String, -1, nil)
+            sqlite3_bind_int64(metaStatement, 7, Int64(page.crawledAt.timeIntervalSince1970))
+            sqlite3_bind_int(metaStatement, 8, Int32(wordCount))
+            sqlite3_bind_text(metaStatement, 9, (page.source.rawValue as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(metaStatement, 10, (jsonData as NSString).utf8String, -1, nil)
 
             guard sqlite3_step(metaStatement) == SQLITE_DONE else {
                 let errorMessage = String(cString: sqlite3_errmsg(database))
@@ -1414,17 +1443,19 @@ extension Search {
             return terms.joined(separator: " ")
         }
 
-        /// Search documents by query with optional source and framework filters
+        /// Search documents by query with optional source, framework, and language filters
         /// If query starts with a known source prefix (e.g., "swift-book"), it's extracted as a filter
         /// - Parameters:
         ///   - query: Search query (may include source prefix like "swift-evolution actors")
         ///   - source: Optional source filter (apple-docs, swift-evolution, etc.)
         ///   - framework: Optional framework filter (swiftui, foundation, etc. - only for apple-docs)
+        ///   - language: Optional language filter (swift, objc)
         ///   - limit: Maximum number of results
         public func search(
             query: String,
             source: String? = nil,
             framework: String? = nil,
+            language: String? = nil,
             limit: Int = Shared.Constants.Limit.defaultSearchLimit
         ) async throws -> [Search.Result] {
             guard let database else {
@@ -1468,6 +1499,9 @@ extension Search {
             if framework != nil {
                 sql += " AND f.framework = ?"
             }
+            if language != nil {
+                sql += " AND f.language = ?"
+            }
 
             sql += " ORDER BY rank LIMIT ?;"
 
@@ -1490,6 +1524,10 @@ extension Search {
             }
             if let framework {
                 sqlite3_bind_text(statement, paramIndex, (framework as NSString).utf8String, -1, nil)
+                paramIndex += 1
+            }
+            if let language {
+                sqlite3_bind_text(statement, paramIndex, (language as NSString).utf8String, -1, nil)
                 paramIndex += 1
             }
             sqlite3_bind_int(statement, paramIndex, Int32(limit))
@@ -1861,6 +1899,39 @@ extension Search {
         }
 
         // MARK: - Helper Methods
+
+        /// Detect programming language from content using heuristics
+        /// Returns "swift", "objc", or defaults to "swift"
+        private func detectLanguage(from content: String) -> String {
+            // Look for Objective-C indicators
+            let objcPatterns = [
+                "#import",
+                "@interface",
+                "@implementation",
+                "@property",
+                "@synthesize",
+                "@selector",
+                "NSObject",
+                "- (void)",
+                "- (id)",
+                "+ (void)",
+                "+ (id)",
+                "[[",
+                "]]",
+            ]
+
+            let lowercased = content.lowercased()
+
+            // Check for Obj-C patterns
+            for pattern in objcPatterns {
+                if content.contains(pattern) || lowercased.contains(pattern.lowercased()) {
+                    return "objc"
+                }
+            }
+
+            // Default to Swift (most Apple docs are Swift)
+            return "swift"
+        }
 
         private func extractSummary(
             from content: String,

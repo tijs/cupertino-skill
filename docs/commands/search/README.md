@@ -55,7 +55,20 @@ cupertino search "View" --framework swiftui
 cupertino search "URL" --framework foundation
 ```
 
-### -l, --limit
+### -l, --language
+
+Filter results by programming language.
+
+**Type:** String
+**Values:** `swift`, `objc`
+
+**Example:**
+```bash
+cupertino search "URLSession" --language swift
+cupertino search "NSURLSession" --language objc
+```
+
+### --limit
 
 Maximum number of results to return.
 

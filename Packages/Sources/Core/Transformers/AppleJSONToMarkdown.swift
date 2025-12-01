@@ -93,6 +93,14 @@ public struct AppleJSONToMarkdown: ContentTransformer, @unchecked Sendable {
         return URL(string: "https://developer.apple.com/tutorials/data\(path).json")
     }
 
+    /// Extract the interface language from the JSON response (swift, objc, etc.)
+    public static func extractLanguage(from json: Data) -> String {
+        guard let doc = try? JSONDecoder().decode(AppleDocumentation.self, from: json) else {
+            return "swift"
+        }
+        return doc.interfaceLanguage
+    }
+
     /// Extract linked documentation URLs from the JSON response
     public static func extractLinks(from json: Data) -> [URL] {
         guard let doc = try? JSONDecoder().decode(AppleDocumentation.self, from: json) else {
@@ -331,6 +339,7 @@ public struct AppleJSONToMarkdown: ContentTransformer, @unchecked Sendable {
 // MARK: - JSON Models for Apple Documentation API
 
 struct AppleDocumentation: Codable {
+    let identifier: Identifier?
     let metadata: Metadata
     let abstract: [InlineContent]
     let primaryContentSections: [PrimaryContentSection]?
@@ -338,6 +347,11 @@ struct AppleDocumentation: Codable {
     let seeAlsoSections: [TopicSection]?
     let relationshipsSections: [RelationshipSection]?
     let references: [String: Reference]?
+
+    struct Identifier: Codable {
+        let interfaceLanguage: String?
+        let url: String?
+    }
 
     struct Metadata: Codable {
         let title: String
@@ -348,6 +362,11 @@ struct AppleDocumentation: Codable {
         struct Module: Codable {
             let name: String
         }
+    }
+
+    /// Get the interface language (swift, objc, etc.)
+    var interfaceLanguage: String {
+        identifier?.interfaceLanguage ?? "swift"
     }
 }
 
@@ -506,6 +525,7 @@ extension AppleJSONToMarkdown {
             overview: overview,
             sections: sections,
             codeExamples: codeExamples,
+            language: doc.interfaceLanguage,
             platforms: platforms,
             module: module,
             conformsTo: conformsTo,

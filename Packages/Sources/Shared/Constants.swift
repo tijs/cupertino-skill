@@ -132,7 +132,7 @@ extension Shared {
             public static let userAgent = "CupertinoCrawler/1.0"
 
             /// Current version
-            public static let version = "0.1.8"
+            public static let version = "0.1.9"
         }
 
         // MARK: - Display Names
@@ -402,6 +402,9 @@ extension Shared {
 
             /// JSON Schema parameter: framework
             public static let schemaParamFramework = "framework"
+
+            /// JSON Schema parameter: language
+            public static let schemaParamLanguage = "language"
 
             /// JSON Schema parameter: limit
             public static let schemaParamLimit = "limit"

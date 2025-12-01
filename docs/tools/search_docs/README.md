@@ -69,6 +69,18 @@ Filter results to a specific framework (applies to `apple-docs` source).
 
 Use `list_frameworks` to see available framework names.
 
+### language (optional)
+
+Filter results by programming language.
+
+**Type:** String
+
+**Default:** None (searches all languages)
+
+**Values:**
+- `"swift"` - Swift documentation
+- `"objc"` - Objective-C documentation
+
 ### limit (optional)
 
 Maximum number of results to return.

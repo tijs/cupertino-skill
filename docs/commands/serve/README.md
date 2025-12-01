@@ -141,6 +141,7 @@ Full-text search across all documentation.
 - `query` (required): Search keywords
 - `source` (optional): Filter by source (apple-docs, swift-book, swift-org, swift-evolution, packages)
 - `framework` (optional): Filter by framework name
+- `language` (optional): Filter by language (swift, objc)
 - `limit` (optional): Max results (default: 20, max: 100)
 
 ### list_frameworks

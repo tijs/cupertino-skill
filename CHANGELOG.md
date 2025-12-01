@@ -1,3 +1,15 @@
+## 0.1.9
+
+### Added
+- `--language` filter for search (swift, objc) - CLI and MCP (#34)
+- `source` parameter to MCP `search_docs` tool (#38)
+
+### Changed
+- Database schema v5 - added `language` column to docs_fts and docs_metadata
+- **BREAKING**: Requires database rebuild (`rm ~/.cupertino/search.db && cupertino save`)
+
+---
+
 ## 0.1.8
 
 ### Added
