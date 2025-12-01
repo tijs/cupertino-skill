@@ -21,6 +21,7 @@ public struct StructuredDocumentationPage: Codable, Sendable, Identifiable, Hash
     public let codeExamples: [CodeExample]
 
     // Apple-specific metadata (nil for non-Apple sources)
+    public let language: String? // Programming language (swift, objc, etc.)
     public let platforms: [String]?
     public let module: String?
     public let conformsTo: [String]? // Protocols this type conforms to
@@ -45,6 +46,7 @@ public struct StructuredDocumentationPage: Codable, Sendable, Identifiable, Hash
         overview: String? = nil,
         sections: [Section] = [],
         codeExamples: [CodeExample] = [],
+        language: String? = nil,
         platforms: [String]? = nil,
         module: String? = nil,
         conformsTo: [String]? = nil,
@@ -64,6 +66,7 @@ public struct StructuredDocumentationPage: Codable, Sendable, Identifiable, Hash
         self.overview = overview
         self.sections = sections
         self.codeExamples = codeExamples
+        self.language = language
         self.platforms = platforms
         self.module = module
         self.conformsTo = conformsTo

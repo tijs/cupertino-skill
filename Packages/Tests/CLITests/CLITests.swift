@@ -15,13 +15,14 @@ struct CommandRegistrationTests {
     func subcommandsRegistered() {
         let config = Cupertino.configuration
 
-        #expect(config.subcommands.count == 6)
+        #expect(config.subcommands.count == 7)
         #expect(config.subcommands.contains { $0 == FetchCommand.self })
         #expect(config.subcommands.contains { $0 == SaveCommand.self })
         #expect(config.subcommands.contains { $0 == ServeCommand.self })
         #expect(config.subcommands.contains { $0 == SearchCommand.self })
         #expect(config.subcommands.contains { $0 == ReadCommand.self })
         #expect(config.subcommands.contains { $0 == DoctorCommand.self })
+        #expect(config.subcommands.contains { $0 == CleanupCommand.self })
     }
 
     @Test("Default subcommand is ServeCommand")

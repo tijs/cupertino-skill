@@ -69,7 +69,9 @@ public actor CupertinoSearchToolProvider: ToolProvider {
             throw ToolError.missingArgument(Shared.Constants.MCP.schemaParamQuery)
         }
 
+        let source = arguments?[Shared.Constants.MCP.schemaParamSource]?.value as? String
         let framework = arguments?[Shared.Constants.MCP.schemaParamFramework]?.value as? String
+        let language = arguments?[Shared.Constants.MCP.schemaParamLanguage]?.value as? String
         let defaultLimit = Shared.Constants.Limit.defaultSearchLimit
         let requestedLimit = (arguments?[Shared.Constants.MCP.schemaParamLimit]?.value as? Int) ?? defaultLimit
         let limit = min(requestedLimit, Shared.Constants.Limit.maxSearchLimit)
@@ -77,15 +79,23 @@ public actor CupertinoSearchToolProvider: ToolProvider {
         // Perform search
         let results = try await searchIndex.search(
             query: query,
+            source: source,
             framework: framework,
+            language: language,
             limit: limit
         )
 
         // Format results as markdown
         var markdown = "# Search Results for \"\(query)\"\n\n"
 
+        if let source {
+            markdown += "_Filtered to source: **\(source)**_\n\n"
+        }
         if let framework {
             markdown += "_Filtered to framework: **\(framework)**_\n\n"
+        }
+        if let language {
+            markdown += "_Filtered to language: **\(language)**_\n\n"
         }
 
         markdown += "Found **\(results.count)** result\(results.count == 1 ? "" : "s"):\n\n"

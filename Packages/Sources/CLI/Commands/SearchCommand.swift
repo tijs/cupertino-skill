@@ -34,6 +34,12 @@ struct SearchCommand: AsyncParsableCommand {
 
     @Option(
         name: .shortAndLong,
+        help: "Filter by programming language: swift, objc"
+    )
+    var language: String?
+
+    @Option(
+        name: .shortAndLong,
         help: "Maximum number of results to return"
     )
     var limit: Int = Shared.Constants.Limit.defaultSearchLimit
@@ -73,6 +79,7 @@ struct SearchCommand: AsyncParsableCommand {
             query: query,
             source: source,
             framework: framework,
+            language: language,
             limit: limit
         )
 
