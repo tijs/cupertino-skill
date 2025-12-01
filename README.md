@@ -8,6 +8,8 @@ A Swift-based tool to crawl, index, and serve Apple's developer documentation to
 [![macOS 15+](https://img.shields.io/badge/macOS-15+-blue.svg)](https://www.apple.com/macos)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
+![Cupertino Demo](docs/images/cupertino.gif)
+
 ## What is Cupertino?
 
 Cupertino is a local, structured, AI-ready documentation system for Apple platforms. It:
