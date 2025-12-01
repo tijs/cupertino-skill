@@ -91,6 +91,16 @@ cupertino save
    - "What does Swift Evolution proposal SE-0001 propose?"
    - "List available frameworks"
 
+### Use with Claude Code
+
+If you're using [Claude Code](https://docs.anthropic.com/en/docs/claude-code), you can add Cupertino as an MCP server with a single command:
+
+```bash
+claude mcp add cupertino --scope user -- /usr/local/bin/cupertino
+```
+
+This registers Cupertino globally for all your projects. Claude Code will automatically have access to Apple documentation search.
+
 ### What You Get
 
 Once configured, Claude Desktop can search your local documentation:
