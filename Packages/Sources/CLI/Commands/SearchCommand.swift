@@ -39,7 +39,7 @@ struct SearchCommand: AsyncParsableCommand {
     var language: String?
 
     @Option(
-        name: .shortAndLong,
+        name: .long,
         help: "Maximum number of results to return"
     )
     var limit: Int = Shared.Constants.Limit.defaultSearchLimit

@@ -781,6 +781,66 @@ extension Search {
             }
         }
 
+        /// Extract optimized FTS content based on document kind
+        /// Core types get focused content (title, abstract, overview) without member noise
+        /// Members get title + abstract + declaration for quick matching
+        private func extractOptimizedContent(from page: StructuredDocumentationPage) -> String {
+            let kind = page.inferredKind
+            var parts: [String] = []
+
+            switch kind {
+            case .protocol, .class, .struct, .enum, .typeAlias:
+                // Core types: high-signal content only
+                // Repeat title multiple times to boost title matching in BM25
+                parts.append(page.title)
+                parts.append(page.title)
+                parts.append(page.title)
+
+                if let abstract = page.abstract {
+                    parts.append(abstract)
+                }
+
+                if let declaration = page.declaration?.code {
+                    parts.append(declaration)
+                }
+
+                if let overview = page.overview {
+                    // Take first 2000 chars of overview to avoid noise
+                    let truncated = String(overview.prefix(2000))
+                    parts.append(truncated)
+                }
+
+            case .method, .property, .`operator`, .macro:
+                // Members: focused on identity and usage
+                parts.append(page.title)
+                parts.append(page.title)
+
+                if let abstract = page.abstract {
+                    parts.append(abstract)
+                }
+
+                if let declaration = page.declaration?.code {
+                    parts.append(declaration)
+                }
+
+            case .article, .tutorial, .collection:
+                // Articles: use full content for comprehensive search
+                if let raw = page.rawMarkdown {
+                    return raw
+                }
+                return page.markdown
+
+            case .unknown, .framework, .function:
+                // Unknown/framework/function: use raw content as fallback
+                if let raw = page.rawMarkdown {
+                    return raw
+                }
+                return page.markdown
+            }
+
+            return parts.joined(separator: "\n\n")
+        }
+
         /// Index a structured documentation page with full JSON data
         /// - Parameters:
         ///   - uri: Document URI
@@ -796,7 +856,8 @@ extension Search {
             jsonData: String
         ) async throws {
             // First, index the basic document (FTS + metadata with json_data)
-            let content = page.rawMarkdown ?? page.markdown
+            // Extract optimized content based on document kind to improve BM25 ranking
+            let content = extractOptimizedContent(from: page)
             let summary = extractSummary(from: content)
             let wordCount = content.split(separator: " ").count
 
@@ -880,7 +941,8 @@ extension Search {
             sqlite3_bind_text(structStatement, 1, (uri as NSString).utf8String, -1, nil)
             sqlite3_bind_text(structStatement, 2, (page.url.absoluteString as NSString).utf8String, -1, nil)
             sqlite3_bind_text(structStatement, 3, (page.title as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(structStatement, 4, (page.kind.rawValue as NSString).utf8String, -1, nil)
+            // Use inferredKind to correctly classify ~16,500 docs currently marked as "unknown"
+            sqlite3_bind_text(structStatement, 4, (page.inferredKind.rawValue as NSString).utf8String, -1, nil)
 
             if let abstract = page.abstract {
                 sqlite3_bind_text(structStatement, 5, (abstract as NSString).utf8String, -1, nil)
@@ -1487,9 +1549,11 @@ extension Search {
                 f.summary,
                 m.file_path,
                 m.word_count,
-                bm25(docs_fts) as rank
+                bm25(docs_fts) as rank,
+                COALESCE(s.kind, 'unknown') as kind
             FROM docs_fts f
             JOIN docs_metadata m ON f.uri = m.uri
+            LEFT JOIN docs_structured s ON f.uri = s.uri
             WHERE docs_fts MATCH ?
             """
 
@@ -1503,6 +1567,9 @@ extension Search {
                 sql += " AND f.language = ?"
             }
 
+            // Fetch significantly more results so title/kind boosts can surface buried gems
+            // View protocol has poor BM25 but exact title match should bring it to top
+            let fetchLimit = min(limit * 20, 1000)  // Fetch 20x more, max 1000
             sql += " ORDER BY rank LIMIT ?;"
 
             var statement: OpaquePointer?
@@ -1530,10 +1597,10 @@ extension Search {
                 sqlite3_bind_text(statement, paramIndex, (language as NSString).utf8String, -1, nil)
                 paramIndex += 1
             }
-            sqlite3_bind_int(statement, paramIndex, Int32(limit))
+            sqlite3_bind_int(statement, paramIndex, Int32(fetchLimit))
 
             // Execute and collect results
-            // Column order: uri(0), source(1), framework(2), title(3), summary(4), file_path(5), word_count(6), rank(7)
+            // Column order: uri(0), source(1), framework(2), title(3), summary(4), file_path(5), word_count(6), rank(7), kind(8)
             var results: [Search.Result] = []
 
             while sqlite3_step(statement) == SQLITE_ROW {
@@ -1542,7 +1609,8 @@ extension Search {
                       let frameworkPtr = sqlite3_column_text(statement, 2),
                       let titlePtr = sqlite3_column_text(statement, 3),
                       let summaryPtr = sqlite3_column_text(statement, 4),
-                      let filePathPtr = sqlite3_column_text(statement, 5)
+                      let filePathPtr = sqlite3_column_text(statement, 5),
+                      let kindPtr = sqlite3_column_text(statement, 8)
                 else {
                     continue
                 }
@@ -1554,7 +1622,104 @@ extension Search {
                 let summary = String(cString: summaryPtr)
                 let filePath = String(cString: filePathPtr)
                 let wordCount = Int(sqlite3_column_int(statement, 6))
-                let rank = sqlite3_column_double(statement, 7)
+                let bm25Rank = sqlite3_column_double(statement, 7)
+                let kind = String(cString: kindPtr)
+
+                // Apply kind-based ranking multiplier
+                // BM25 scores are NEGATIVE (lower = better match)
+                // Core types (protocol, class, struct, framework) get boosted (divide to make smaller/better)
+                // Member docs (property, method) get penalized (multiply to make larger/worse)
+                let kindMultiplier: Double = {
+                    switch kind {
+                    case "protocol", "class", "struct", "framework":
+                        return 0.5  // Divide to boost (smaller negative = better rank)
+                    case "property", "method":
+                        return 2.0  // Multiply to penalize (larger negative = worse rank)
+                    default:
+                        return 1.0
+                    }
+                }()
+
+                // Apply intelligent title and query matching heuristics
+                let combinedBoost: Double = {
+                    // Use original query for semantic matching (not sanitized)
+                    let queryWords = query.lowercased()
+                        .components(separatedBy: .whitespacesAndNewlines)
+                        .filter { !$0.isEmpty && $0.count > 1 }  // Filter noise words
+
+                    let titleLower = title.lowercased()
+                    let titleWords = titleLower.components(separatedBy: .whitespacesAndNewlines)
+                        .filter { !$0.isEmpty }
+
+                    var boost = 1.0
+
+                    // HEURISTIC 1: Short query exact title match (user knows what they want)
+                    // "View" searching for "View" protocol = almost certainly what they want
+                    if queryWords.count <= 3 && titleLower == queryWords.joined(separator: " ") {
+                        boost *= 0.05  // 20x boost - user typed exact name
+                    }
+                    // First word exact match (very strong signal)
+                    else if !titleWords.isEmpty && !queryWords.isEmpty && titleWords[0] == queryWords[0] {
+                        boost *= 0.15  // 6-7x boost - title starts with query word
+                    }
+                    // All query words in title
+                    else if queryWords.allSatisfy({ titleLower.contains($0) }) {
+                        boost *= 0.3  // 3x boost - all terms match
+                    }
+                    // Any query word in title
+                    else if queryWords.contains(where: { titleLower.contains($0) }) {
+                        boost *= 0.6  // ~1.5x boost - partial match
+                    }
+
+                    // HEURISTIC: Penalize nested types when searching for parent type
+                    // Problem: "Text" query returns "Text.Scale" before "Text"
+                    // Reason: "Text.Scale" starts with "Text" and gets the 0.15 boost
+                    // Solution: If query has no dot but title does, apply penalty
+                    let queryLower = query.lowercased()
+                    if !queryLower.contains(".") && titleLower.contains(".") {
+                        boost *= 2.0  // Penalty: nested types should rank below parent types
+                    }
+
+                    // HEURISTIC 2: Query pattern analysis
+                    let queryText = query.lowercased()
+
+                    // "X protocol" pattern → boost protocols more
+                    if queryText.contains("protocol") && kind == "protocol" {
+                        boost *= 0.4  // Extra 2.5x for protocols when user asks for protocols
+                    }
+                    // "X class" pattern → boost classes
+                    else if queryText.contains("class") && kind == "class" {
+                        boost *= 0.4
+                    }
+                    // "X struct" pattern → boost structs
+                    else if queryText.contains("struct") && kind == "struct" {
+                        boost *= 0.4
+                    }
+
+                    // HEURISTIC 3: Context-aware kind boosting
+                    // Single-word queries with framework filter = looking for core type
+                    if queryWords.count == 1 && framework == "swiftui" {
+                        switch kind {
+                        case "protocol", "class", "struct":
+                            boost *= 0.5  // Additional 2x for core types with short queries
+                        default:
+                            break
+                        }
+                    }
+
+                    // HEURISTIC 4: Penalize overly verbose titles for short queries
+                    // If query is short but title is long, it's probably not what user wants
+                    if queryWords.count <= 2 && title.count > 50 {
+                        boost *= 1.3  // Slight penalty for verbose titles vs short queries
+                    }
+
+                    return boost
+                }()
+
+                // CRITICAL: BM25 scores are negative, LOWER = better
+                // To boost (improve rank), we need to make MORE negative
+                // So we DIVIDE by multipliers (smaller multiplier = larger negative number)
+                let adjustedRank = bm25Rank / (kindMultiplier * combinedBoost)
 
                 results.append(
                     Search.Result(
@@ -1565,12 +1730,16 @@ extension Search {
                         summary: summary,
                         filePath: filePath,
                         wordCount: wordCount,
-                        rank: rank
+                        rank: adjustedRank
                     )
                 )
             }
 
-            return results
+            // Re-sort by adjusted rank (lower BM25 = better)
+            results.sort { $0.rank < $1.rank }
+
+            // Trim to requested limit after applying boosts
+            return Array(results.prefix(limit))
         }
 
         /// List all frameworks with document counts
