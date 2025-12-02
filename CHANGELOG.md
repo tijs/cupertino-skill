@@ -1,3 +1,14 @@
+## 0.2.0
+
+### Fixed
+- **CRITICAL**: Fixed cleanup bug that deleted source code instead of .git folders (#40)
+- Simplified `compressDirectory()` to preserve Apple's flat ZIP structure
+- Reduced cleanup patterns to only safe items: .git, .DS_Store, DerivedData, build, .build, xcuserdata, *.xcuserstate
+- Verified all 606/607 sample ZIPs contain intact source code (1 corrupted in original download)
+- Cleanup now achieves 44% space reduction (27GB → 15GB) while preserving all code
+
+---
+
 ## 0.1.9
 
 ### Added
