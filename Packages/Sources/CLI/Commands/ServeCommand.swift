@@ -95,19 +95,19 @@ struct ServeCommand: AsyncParsableCommand {
         )
         await server.registerResourceProvider(resourceProvider)
 
-        // Register search tool provider if index is available
-        if let searchIndex {
-            let toolProvider = CupertinoSearchToolProvider(searchIndex: searchIndex)
-            await server.registerToolProvider(toolProvider)
-            let message = "✅ Search enabled (index found)"
+        // Initialize sample code index if available
+        let sampleIndex = await loadSampleIndex()
+
+        // Register unified tool provider with both indexes
+        let toolProvider = CupertinoUnifiedToolProvider(searchIndex: searchIndex, sampleDatabase: sampleIndex)
+        await server.registerToolProvider(toolProvider)
+
+        // Log availability of each index
+        if searchIndex != nil {
+            let message = "✅ Documentation search enabled (index found)"
             Log.info(message, category: .mcp)
         }
-
-        // Register sample code tool provider if index is available
-        let sampleIndex = await loadSampleIndex()
-        if let sampleIndex {
-            let sampleToolProvider = SampleToolProvider(database: sampleIndex)
-            await server.registerToolProvider(sampleToolProvider)
+        if sampleIndex != nil {
             let message = "✅ Sample code search enabled (index found)"
             Log.info(message, category: .mcp)
         }
