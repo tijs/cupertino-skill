@@ -57,9 +57,12 @@ sudo ln -sf "$(pwd)/.build/release/cupertino" /usr/local/bin/cupertino
 ### Quick Reference
 
 ```bash
-# Quick Setup (Recommended) - streams from GitHub, no crawling needed
-cupertino save --remote              # Build index from pre-crawled docs (~30 min)
+# Quick Setup (Recommended) - download pre-built databases (~30 seconds)
+cupertino setup                      # Download databases from GitHub
 cupertino serve                      # Start MCP server
+
+# Alternative: Build from GitHub (~45 minutes)
+cupertino save --remote              # Stream and build locally
 
 # Or fetch documentation yourself
 cupertino fetch --type docs          # Apple Developer Documentation
@@ -85,8 +88,18 @@ cupertino serve                      # Start MCP server (explicit)
 ### Instant Setup (Recommended)
 
 ```bash
-# Stream pre-crawled documentation from GitHub (~30 minutes)
-# No crawling required - instant access to all Apple docs
+# Download pre-built databases from GitHub (~30 seconds)
+cupertino setup
+
+# Start MCP server
+cupertino serve
+```
+
+### Alternative: Build from GitHub
+
+```bash
+# Stream and build locally (~45 minutes)
+# Use this if you want to build the database yourself
 cupertino save --remote
 
 # Start MCP server
@@ -276,6 +289,7 @@ These catalogs are indexed during `cupertino save` and enable instant search wit
 | Command | Description |
 |---------|-------------|
 | `cupertino` | Start MCP server (default) |
+| `cupertino setup` | Download pre-built databases from GitHub |
 | `cupertino serve` | Start MCP server |
 | `cupertino fetch` | Download documentation |
 | `cupertino save` | Build search index |
@@ -481,7 +495,7 @@ For development setup, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Project Status
 
-**Version:** 0.2.7
+**Version:** 0.3.0
 **Status:** 🚧 Active Development
 
 - ✅ All core functionality working

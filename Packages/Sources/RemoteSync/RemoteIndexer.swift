@@ -4,10 +4,10 @@ import Foundation
 
 /// Groups callbacks and context for indexing operations.
 /// Reduces function parameter count while maintaining type safety.
-struct IndexingContext: Sendable {
+struct IndexingContext: @unchecked Sendable {
     let indexDocument: RemoteIndexer.DocumentIndexer
     let onProgress: @Sendable (RemoteSyncProgress) -> Void
-    let onDocument: (@Sendable (IndexResult) -> Void)?
+    let onDocument: (@Sendable (RemoteIndexer.IndexResult) -> Void)?
 }
 
 // MARK: - Remote Indexer
@@ -100,8 +100,8 @@ public actor RemoteIndexer {
     ///   - onProgress: Progress callback (called frequently)
     ///   - onDocument: Called for each document processed
     public func run(
-        indexDocument: DocumentIndexer,
-        onProgress: @Sendable (RemoteSyncProgress) -> Void,
+        indexDocument: @escaping DocumentIndexer,
+        onProgress: @escaping @Sendable (RemoteSyncProgress) -> Void,
         onDocument: (@Sendable (IndexResult) -> Void)? = nil
     ) async throws {
         // Determine which phases to run
@@ -136,8 +136,8 @@ public actor RemoteIndexer {
 
     private func runPhase(
         _ phase: RemoteIndexState.Phase,
-        indexDocument: DocumentIndexer,
-        onProgress: @Sendable (RemoteSyncProgress) -> Void,
+        indexDocument: @escaping DocumentIndexer,
+        onProgress: @escaping @Sendable (RemoteSyncProgress) -> Void,
         onDocument: (@Sendable (IndexResult) -> Void)?
     ) async throws {
         let path = phasePath(phase)
@@ -214,10 +214,8 @@ public actor RemoteIndexer {
             // Update file progress
             state = state.updatingFileIndex(fileIndex)
 
-            // Report progress periodically
-            if fileIndex % 10 == 0 {
-                reportProgress(context.onProgress)
-            }
+            // Report progress every file
+            reportProgress(context.onProgress)
 
             // Fetch and index file
             do {

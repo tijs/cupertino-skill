@@ -14,45 +14,87 @@ public actor GitHubFetcher {
     /// URL session for HTTP requests
     private let session: URLSession
 
+    /// Cached tree structure (fetched once, used for all lookups)
+    private var cachedTree: [String: [GitHubTreeItem]]?
+
     // MARK: - Initialization
+
+    /// GitHub token for authenticated requests (optional, increases rate limit)
+    private let token: String?
 
     public init(
         repository: String = RemoteSync.defaultRepository,
         branch: String = RemoteSync.defaultBranch,
-        session: URLSession = .shared
+        session: URLSession = .shared,
+        token: String? = ProcessInfo.processInfo.environment["GITHUB_TOKEN"]
     ) {
         self.repository = repository
         self.branch = branch
         self.session = session
+        self.token = token
     }
 
-    // MARK: - Directory Listing (GitHub API)
+    // MARK: - Tree API (Single call for entire repo)
 
-    /// Fetch list of directories in a path (e.g., frameworks in /docs)
-    public func fetchDirectoryList(path: String) async throws -> [String] {
-        let url = buildAPIURL(path: path)
-        let (data, response) = try await session.data(from: url)
+    /// Fetch and cache the entire repository tree
+    private func ensureTreeLoaded() async throws {
+        if cachedTree != nil { return }
+
+        let url = URL(string: "\(RemoteSync.gitHubAPIBaseURL)/repos/\(repository)/git/trees/\(branch)?recursive=1")!
+        var request = URLRequest(url: url)
+
+        // Add auth header if token available
+        if let token {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (data, response) = try await session.data(for: request)
 
         try validateResponse(response, for: url)
 
-        let items = try JSONDecoder().decode([GitHubContentItem].self, from: data)
+        let treeResponse = try JSONDecoder().decode(GitHubTreeResponse.self, from: data)
+
+        // Group items by parent directory
+        var tree: [String: [GitHubTreeItem]] = [:]
+        for item in treeResponse.tree {
+            let parentPath = (item.path as NSString).deletingLastPathComponent
+            tree[parentPath, default: []].append(item)
+        }
+
+        cachedTree = tree
+    }
+
+    // MARK: - Directory Listing
+
+    /// Fetch list of directories in a path (e.g., frameworks in /docs)
+    public func fetchDirectoryList(path: String) async throws -> [String] {
+        try await ensureTreeLoaded()
+
+        let cleanPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        let items = cachedTree?[cleanPath] ?? []
+
         return items
-            .filter { $0.type == "dir" }
-            .map(\.name)
+            .filter { $0.type == "tree" }
+            .map { ($0.path as NSString).lastPathComponent }
             .sorted()
     }
 
     /// Fetch list of files in a directory
     public func fetchFileList(path: String) async throws -> [GitHubFileInfo] {
-        let url = buildAPIURL(path: path)
-        let (data, response) = try await session.data(from: url)
+        try await ensureTreeLoaded()
 
-        try validateResponse(response, for: url)
+        let cleanPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        let items = cachedTree?[cleanPath] ?? []
 
-        let items = try JSONDecoder().decode([GitHubContentItem].self, from: data)
         return items
-            .filter { $0.type == "file" }
-            .map { GitHubFileInfo(name: $0.name, path: $0.path, size: $0.size ?? 0) }
+            .filter { $0.type == "blob" }
+            .map {
+                GitHubFileInfo(
+                    name: ($0.path as NSString).lastPathComponent,
+                    path: $0.path,
+                    size: $0.size ?? 0
+                )
+            }
             .sorted { $0.name < $1.name }
     }
 
@@ -86,12 +128,6 @@ public actor GitHubFetcher {
     }
 
     // MARK: - URL Building
-
-    private func buildAPIURL(path: String) -> URL {
-        let cleanPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
-        let urlString = "\(RemoteSync.gitHubAPIBaseURL)/repos/\(repository)/contents/\(cleanPath)?ref=\(branch)"
-        return URL(string: urlString)!
-    }
 
     private func buildRawURL(path: String) -> URL {
         let cleanPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
@@ -134,11 +170,17 @@ public struct GitHubFileInfo: Sendable, Equatable {
     }
 }
 
-/// GitHub API content item response
-private struct GitHubContentItem: Decodable {
-    let name: String
+/// GitHub Git Tree API response
+private struct GitHubTreeResponse: Decodable {
+    let sha: String
+    let tree: [GitHubTreeItem]
+    let truncated: Bool
+}
+
+/// Item in Git tree
+private struct GitHubTreeItem: Decodable {
     let path: String
-    let type: String
+    let type: String // "blob" for files, "tree" for directories
     let size: Int?
 }
 

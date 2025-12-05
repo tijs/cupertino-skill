@@ -20,13 +20,6 @@ public struct AnimatedProgress: Sendable {
 
     /// Render progress to string (for terminal output)
     public func render(_ progress: RemoteSyncProgress) -> String {
-        var lines: [String] = []
-
-        // Header
-        let header = useEmoji ? "🚀 Building database from remote..." : "Building database from remote..."
-        lines.append(header)
-        lines.append("")
-
         // Phase and framework progress
         let phaseIcon = useEmoji ? phaseEmoji(progress.phase) : "-"
         let frameworkBar = renderBar(
@@ -35,30 +28,22 @@ public struct AnimatedProgress: Sendable {
         )
         let phaseLabel = progress.phase.rawValue.capitalized
         let counts = "\(progress.frameworkIndex)/\(progress.frameworksTotal)"
-        lines.append("\(phaseIcon) \(phaseLabel): \(frameworkBar) \(counts)")
+
+        var line = "\(phaseIcon) \(phaseLabel): \(frameworkBar) \(counts)"
 
         // Current framework and file progress
         if let framework = progress.framework {
             let fileProgress = progress.filesTotal > 0
                 ? "(\(progress.fileIndex)/\(progress.filesTotal) files)"
-                : "(loading...)"
-            lines.append("   Current: \(framework) \(fileProgress)")
+                : ""
+            line += " - \(framework) \(fileProgress)"
         }
-
-        lines.append("")
 
         // Time info
         let elapsedStr = formatDuration(progress.elapsed)
-        let etaStr = progress.estimatedTimeRemaining.map { formatDuration($0) } ?? "--:--"
-        let timeIcon = useEmoji ? "⏱️ " : ""
-        lines.append("\(timeIcon)Elapsed: \(elapsedStr) | ETA: \(etaStr)")
+        line += " | \(elapsedStr)"
 
-        // Overall progress percentage
-        let percentStr = String(format: "%.1f%%", progress.overallProgress * 100)
-        let progressIcon = useEmoji ? "📊" : "-"
-        lines.append("\(progressIcon) Overall: \(percentStr)")
-
-        return lines.joined(separator: "\n")
+        return line
     }
 
     /// Render a single-line status update
@@ -140,8 +125,9 @@ public struct StandardTerminalOutput: TerminalOutput, Sendable {
 public final class ProgressReporter: @unchecked Sendable {
     private let display: AnimatedProgress
     private let output: TerminalOutput
-    private var lastLineCount: Int = 0
     private let lock = NSLock()
+    private var spinnerIndex = 0
+    private let spinnerChars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
 
     public init(
         display: AnimatedProgress = AnimatedProgress(),
@@ -151,30 +137,19 @@ public final class ProgressReporter: @unchecked Sendable {
         self.output = output
     }
 
-    /// Update progress display
+    /// Update progress display (single line, overwrites previous)
     public func update(_ progress: RemoteSyncProgress) {
         lock.lock()
         defer { lock.unlock() }
 
-        // Clear previous output
-        if lastLineCount > 0 {
-            output.moveCursorUp(lastLineCount)
-            for _ in 0..<lastLineCount {
-                output.clearLine()
-                output.write("")
-            }
-            output.moveCursorUp(lastLineCount)
-        }
+        // Get spinner character
+        let spinner = spinnerChars[spinnerIndex % spinnerChars.count]
+        spinnerIndex += 1
 
-        // Render and output new progress
+        // Clear current line and write new progress
         let rendered = display.render(progress)
-        let lines = rendered.components(separatedBy: "\n")
-        lastLineCount = lines.count
-
-        for line in lines {
-            output.clearLine()
-            output.write(line)
-        }
+        let outputStr = "\r\u{1B}[K\(spinner) \(rendered)"
+        FileHandle.standardOutput.write(Data(outputStr.utf8))
     }
 
     /// Print final summary
@@ -182,7 +157,10 @@ public final class ProgressReporter: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
-        output.write("")
-        output.write(message)
+        // Move to new line after progress
+        print("")
+        if !message.isEmpty {
+            output.write(message)
+        }
     }
 }
