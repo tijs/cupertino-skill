@@ -81,6 +81,25 @@ jobs:
           # Verify signing
           codesign -dv --verbose=4 cupertino
 
+      - name: Notarize
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Create zip for notarization
+          ditto -c -k --keepParent cupertino cupertino.zip
+
+          # Submit for notarization
+          xcrun notarytool submit cupertino.zip \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+          # Staple the notarization ticket
+          xcrun stapler staple cupertino
+
       - name: Create Release Archive
         run: |
           # Get version from tag
