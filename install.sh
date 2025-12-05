@@ -8,6 +8,7 @@
 #
 # Options:
 #   --build    Force build from source instead of downloading binary
+#   -y, --yes  Skip confirmation prompts (for reinstall)
 #
 # What this script does:
 #   1. Checks requirements (macOS 15+)
@@ -22,12 +23,17 @@ set -e
 REPO="mihaelamj/cupertino"
 INSTALL_PATH="/usr/local/bin/cupertino"
 FORCE_BUILD=false
+SKIP_PROMPT=false
 
 # Parse arguments
 for arg in "$@"; do
     case $arg in
         --build)
             FORCE_BUILD=true
+            shift
+            ;;
+        -y|--yes)
+            SKIP_PROMPT=true
             shift
             ;;
     esac
@@ -69,11 +75,15 @@ fi
 if [[ -f "$INSTALL_PATH" ]]; then
     EXISTING_VERSION=$("$INSTALL_PATH" --version 2>/dev/null || echo "unknown")
     warn "Existing installation found: $EXISTING_VERSION"
-    read -p "Do you want to reinstall? [y/N] " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        info "Installation cancelled."
-        exit 0
+    if [[ "$SKIP_PROMPT" != "true" ]]; then
+        read -p "Do you want to reinstall? [y/N] " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            info "Installation cancelled."
+            exit 0
+        fi
+    else
+        info "Reinstalling (--yes flag)..."
     fi
 fi
 
