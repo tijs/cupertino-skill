@@ -57,7 +57,11 @@ sudo ln -sf "$(pwd)/.build/release/cupertino" /usr/local/bin/cupertino
 ### Quick Reference
 
 ```bash
-# Fetch documentation
+# Quick Setup (Recommended) - streams from GitHub, no crawling needed
+cupertino save --remote              # Build index from pre-crawled docs (~30 min)
+cupertino serve                      # Start MCP server
+
+# Or fetch documentation yourself
 cupertino fetch --type docs          # Apple Developer Documentation
 cupertino fetch --type swift         # Swift.org documentation
 cupertino fetch --type evolution     # Swift Evolution proposals
@@ -69,7 +73,8 @@ cupertino fetch --type archive       # Apple Archive programming guides
 cupertino fetch --type all           # All types in parallel
 
 # Build indexes
-cupertino save                       # Build documentation search index
+cupertino save                       # Build documentation search index (from local files)
+cupertino save --remote              # Build from GitHub (no local files needed)
 cupertino index                      # Index sample code for search
 
 # Start server
@@ -77,7 +82,18 @@ cupertino                            # Start MCP server (default command)
 cupertino serve                      # Start MCP server (explicit)
 ```
 
-### Download Documentation
+### Instant Setup (Recommended)
+
+```bash
+# Stream pre-crawled documentation from GitHub (~30 minutes)
+# No crawling required - instant access to all Apple docs
+cupertino save --remote
+
+# Start MCP server
+cupertino serve
+```
+
+### Manual Setup (Advanced)
 
 ```bash
 # Download Apple documentation (~20-24 hours for 13,000+ pages)

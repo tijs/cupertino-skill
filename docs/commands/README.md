@@ -23,12 +23,16 @@ CLI commands for the Cupertino documentation server.
 ## Quick Reference
 
 ```bash
-# Download documentation
+# Quick Setup (Recommended) - no crawling needed
+cupertino save --remote
+cupertino serve
+
+# Or download documentation manually
 cupertino fetch --type docs
 cupertino fetch --type evolution
 cupertino fetch --type archive
 
-# Build search index
+# Build search index (from local files)
 cupertino save
 
 # Start MCP server (default command)
@@ -58,7 +62,17 @@ cupertino doctor
 
 ## Workflow
 
-### Initial Setup
+### Quick Setup (Recommended)
+
+```bash
+# Stream pre-crawled docs from GitHub (~30 minutes)
+cupertino save --remote
+
+# Start server
+cupertino serve
+```
+
+### Manual Setup (Advanced)
 
 ```bash
 # 1. Download documentation (takes time)

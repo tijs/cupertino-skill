@@ -1,3 +1,29 @@
+## 0.2.8
+
+### Added
+- **Remote Sync** - New `--remote` flag for `cupertino save` command (#52)
+  - Stream documentation directly from GitHub without local crawling
+  - Instant setup in ~30 minutes instead of 20+ hours
+  - Resumable - if interrupted, continue from where you left off
+  - No disk bloat - streams directly to SQLite
+  - Uses raw.githubusercontent.com (no API rate limits)
+- **RemoteSync Package** - New standalone Swift 6 package with strict concurrency
+  - `RemoteIndexer` actor for orchestrating remote sync
+  - `GitHubFetcher` actor for HTTP operations
+  - `RemoteIndexState` Sendable struct for state persistence
+  - `AnimatedProgress` for terminal progress display
+  - 20 unit tests covering all functionality
+
+### Documentation
+- Updated README with "Instant Setup" quick start section
+- Added `docs/commands/save/option (--)/remote.md` documentation
+- Updated `docs/commands/save/README.md` with remote mode examples
+
+### Related Issues
+- Closes #52
+
+---
+
 ## 0.2.7
 
 ### Fixed
