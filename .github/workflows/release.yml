@@ -97,8 +97,8 @@ jobs:
             --team-id "$APPLE_TEAM_ID" \
             --wait
 
-          # Staple the notarization ticket
-          xcrun stapler staple cupertino
+          # Note: Cannot staple to standalone binary, only to .app/.dmg/.pkg
+          # The binary is notarized - macOS will verify online
 
       - name: Create Release Archive
         run: |
