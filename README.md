@@ -48,6 +48,14 @@ bash <(curl -sSL https://raw.githubusercontent.com/mihaelamj/cupertino/main/inst
 
 This downloads a pre-built, signed, and notarized universal binary, installs it to `/usr/local/bin`, and downloads the documentation databases.
 
+**Or with Homebrew:**
+
+```bash
+brew tap mihaelamj/tap
+brew install cupertino
+cupertino setup
+```
+
 **Or build from source:**
 
 ```bash
