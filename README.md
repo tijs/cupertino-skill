@@ -72,6 +72,8 @@ swift build -c release
 sudo ln -sf "$(pwd)/.build/release/cupertino" /usr/local/bin/cupertino
 ```
 
+**Demo Video:** [Watch on YouTube](https://youtu.be/B-mRdainTMA)
+
 ### Quick Reference
 
 ```bash
