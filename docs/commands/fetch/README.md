@@ -29,6 +29,7 @@ The `fetch` command is the unified fetching command that handles both web crawli
   - `code` - Apple Sample Code (direct download from Apple, requires auth)
   - `samples` - Apple Sample Code (git clone from GitHub, recommended)
   - `archive` - Apple Archive guides (legacy programming guides)
+  - `hig` - Human Interface Guidelines (web crawl)
   - `all` - All types in parallel
 
 ### Web Crawl Options
@@ -90,6 +91,12 @@ cupertino fetch --type archive
 # Fetches: Core Animation, Core Graphics, Core Text, etc.
 ```
 
+### Fetch Human Interface Guidelines
+```bash
+cupertino fetch --type hig
+# Fetches: Design guidelines for iOS, macOS, watchOS, visionOS, tvOS
+```
+
 ### Custom Web Crawl
 ```bash
 cupertino fetch --start-url https://developer.apple.com/documentation/swiftui \
@@ -116,6 +123,7 @@ Default locations:
 - **swift**: `~/.cupertino/swift-org/`
 - **evolution**: `~/.cupertino/swift-evolution/`
 - **archive**: `~/.cupertino/archive/`
+- **hig**: `~/.cupertino/hig/`
 
 Output files:
 - **Markdown files** - Converted documentation pages

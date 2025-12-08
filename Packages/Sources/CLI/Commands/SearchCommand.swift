@@ -21,7 +21,7 @@ struct SearchCommand: AsyncParsableCommand {
     @Option(
         name: .shortAndLong,
         help: """
-        Filter by source: apple-docs, swift-evolution, swift-org, swift-book, packages, apple-sample-code, apple-archive
+        Filter by source: apple-docs, swift-evolution, swift-org, swift-book, packages, apple-sample-code, apple-archive, hig
         """
     )
     var source: String?

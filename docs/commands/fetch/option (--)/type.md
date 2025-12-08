@@ -21,7 +21,10 @@ Specifies which documentation source to fetch. Each type targets a different dat
 | `evolution` | Swift Evolution proposals |
 | `packages` | Swift package metadata |
 | `package-docs` | Swift package READMEs |
-| `code` | Apple sample code projects |
+| `code` | Apple sample code (from Apple, requires auth) |
+| `samples` | Apple sample code (from GitHub, recommended) |
+| `archive` | Apple Archive legacy programming guides |
+| `hig` | Human Interface Guidelines |
 | `all` | All types in parallel |
 
 ## Default
@@ -53,7 +56,10 @@ cupertino fetch --type all
 - [evolution](type%20(=value)/evolution.md) - Swift Evolution proposals
 - [packages](type%20(=value)/packages.md) - Swift package metadata
 - [package-docs](type%20(=value)/package-docs.md) - Swift package READMEs
-- [code](type%20(=value)/code.md) - Apple sample code
+- [code](type%20(=value)/code.md) - Apple sample code (from Apple)
+- samples - Apple sample code (from GitHub)
+- [archive](type%20(=value)/archive.md) - Apple Archive legacy guides
+- [hig](type%20(=value)/hig.md) - Human Interface Guidelines
 - [all](type%20(=value)/all.md) - All documentation types
 
 ## Notes

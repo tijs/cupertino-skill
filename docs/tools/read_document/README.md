@@ -31,12 +31,19 @@ Document URI from search results.
 **Schemes:**
 - `apple-docs://` - Apple Developer documentation
 - `swift-evolution://` - Swift Evolution proposals
+- `swift-book://` - The Swift Programming Language book
+- `swift-org://` - Swift.org documentation
+- `hig://` - Human Interface Guidelines
+- `apple-archive://` - Apple Archive legacy programming guides
+- `packages://` - Swift package documentation
 
 **Examples:**
 - `apple-docs://swiftui/documentation_swiftui_view`
 - `apple-docs://swift/documentation_swift_actor`
 - `swift-evolution://SE-0001`
 - `swift-evolution://SE-0302`
+- `hig://components/buttons`
+- `apple-archive://TP40014097/about-views`
 
 ### format (optional)
 
@@ -213,4 +220,5 @@ If the URI format is incorrect:
 ## See Also
 
 - [search_docs](../search_docs/) - Search for documents
+- [search_hig](../search_hig/) - Search Human Interface Guidelines
 - [list_frameworks](../list_frameworks/) - List available frameworks
