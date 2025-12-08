@@ -23,6 +23,8 @@ Filters search results to only include documents from the specified documentatio
 | `swift-book` | The Swift Programming Language book |
 | `packages` | Swift package metadata |
 | `apple-sample-code` | Apple sample code projects |
+| `hig` | Human Interface Guidelines |
+| `apple-archive` | Apple Archive programming guides |
 
 ## Default
 
@@ -45,6 +47,11 @@ cupertino search "async" --source swift-evolution
 cupertino search "closures" -s swift-book
 ```
 
+### Search Human Interface Guidelines
+```bash
+cupertino search "buttons" --source hig
+```
+
 ## Value Details
 
 - [apple-docs](source%20(=value)/apple-docs.md) - Apple Developer Documentation
@@ -53,6 +60,8 @@ cupertino search "closures" -s swift-book
 - [swift-book](source%20(=value)/swift-book.md) - The Swift Programming Language book
 - [packages](source%20(=value)/packages.md) - Swift package metadata
 - [apple-sample-code](source%20(=value)/apple-sample-code.md) - Apple sample code projects
+- [hig](source%20(=value)/hig.md) - Human Interface Guidelines
+- [apple-archive](source%20(=value)/apple-archive.md) - Apple Archive programming guides
 
 ## Combining with Other Filters
 

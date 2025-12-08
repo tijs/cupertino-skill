@@ -1078,7 +1078,8 @@ extension Search {
                 let summary = sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? ""
                 let wordCount = Int(sqlite3_column_int(statement, 4))
                 let filePath = sqlite3_column_text(statement, 5).map { String(cString: $0) } ?? ""
-                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) } ?? "apple-docs"
+                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) }
+                    ?? Shared.Constants.SourcePrefix.appleDocs
 
                 results.append(Search.Result(
                     uri: uri,
@@ -1132,7 +1133,8 @@ extension Search {
                 let summary = sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? ""
                 let wordCount = Int(sqlite3_column_int(statement, 4))
                 let filePath = sqlite3_column_text(statement, 5).map { String(cString: $0) } ?? ""
-                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) } ?? "apple-docs"
+                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) }
+                    ?? Shared.Constants.SourcePrefix.appleDocs
 
                 results.append(Search.Result(
                     uri: uri,
@@ -1198,7 +1200,8 @@ extension Search {
                 let summary = sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? ""
                 let wordCount = Int(sqlite3_column_int(statement, 4))
                 let filePath = sqlite3_column_text(statement, 5).map { String(cString: $0) } ?? ""
-                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) } ?? "apple-docs"
+                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) }
+                    ?? Shared.Constants.SourcePrefix.appleDocs
 
                 results.append(Search.Result(
                     uri: uri,
@@ -1252,7 +1255,8 @@ extension Search {
                 let summary = sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? ""
                 let wordCount = Int(sqlite3_column_int(statement, 4))
                 let filePath = sqlite3_column_text(statement, 5).map { String(cString: $0) } ?? ""
-                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) } ?? "apple-docs"
+                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) }
+                    ?? Shared.Constants.SourcePrefix.appleDocs
 
                 results.append(Search.Result(
                     uri: uri,
@@ -1306,7 +1310,8 @@ extension Search {
                 let summary = sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? ""
                 let wordCount = Int(sqlite3_column_int(statement, 4))
                 let filePath = sqlite3_column_text(statement, 5).map { String(cString: $0) } ?? ""
-                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) } ?? "apple-docs"
+                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) }
+                    ?? Shared.Constants.SourcePrefix.appleDocs
 
                 results.append(Search.Result(
                     uri: uri,
@@ -1372,7 +1377,8 @@ extension Search {
                 let summary = sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? ""
                 let wordCount = Int(sqlite3_column_int(statement, 4))
                 let filePath = sqlite3_column_text(statement, 5).map { String(cString: $0) } ?? ""
-                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) } ?? "apple-docs"
+                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) }
+                    ?? Shared.Constants.SourcePrefix.appleDocs
 
                 results.append(Search.Result(
                     uri: uri,
@@ -1438,7 +1444,8 @@ extension Search {
                 let summary = sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? ""
                 let wordCount = Int(sqlite3_column_int(statement, 4))
                 let filePath = sqlite3_column_text(statement, 5).map { String(cString: $0) } ?? ""
-                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) } ?? "apple-docs"
+                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) }
+                    ?? Shared.Constants.SourcePrefix.appleDocs
 
                 results.append(Search.Result(
                     uri: uri,
@@ -1458,20 +1465,8 @@ extension Search {
         // MARK: - Searching
 
         /// Known source prefixes that should be treated as source filters when detected in query.
-        /// - apple-docs: Apple Developer documentation
-        /// - swift-book: Swift Book documentation from docs.swift.org
-        /// - swift-org: Swift.org documentation
-        /// - swift-evolution: Swift Evolution proposals
-        /// - packages: Swift Package documentation
-        /// - apple-sample-code: Apple sample code projects
-        private static let knownSourcePrefixes = [
-            "apple-docs",
-            "swift-book",
-            "swift-org",
-            "swift-evolution",
-            "packages",
-            "apple-sample-code",
-        ]
+        /// See Shared.Constants.SourcePrefix for available prefixes.
+        private static let knownSourcePrefixes = Shared.Constants.SourcePrefix.allPrefixes
 
         /// Extract source prefix from query if present.
         /// - Returns: (detectedSource, remainingQuery)
@@ -1721,22 +1716,25 @@ extension Search {
 
                 // Apply source-based ranking multiplier
                 // Prefer modern Apple docs over archived guides (but archives still valuable)
+                // swiftlint:disable:next nesting
+                // Justification: typealias used inline to reference long constant path concisely
+                typealias SourcePrefix = Shared.Constants.SourcePrefix
                 let sourceMultiplier: Double = {
                     // Penalize release notes - they match almost every query but rarely what user wants
                     if uri.contains("release-notes") {
                         return 2.5 // Strong penalty - release notes pollute general searches
                     }
 
-                    switch source {
-                    case "apple-docs":
+                    // Use if-else to allow constant comparisons
+                    if source == SourcePrefix.appleDocs {
                         return 1.0 // Baseline - modern docs
-                    case "apple-archive":
+                    } else if source == SourcePrefix.appleArchive {
                         return 1.5 // Slight penalty - archived guides (older but foundational)
-                    case "swift-evolution":
+                    } else if source == SourcePrefix.swiftEvolution {
                         return 1.3 // Slight penalty - proposals (reference, not tutorials)
-                    case "swift-book", "swift-org":
+                    } else if source == SourcePrefix.swiftBook || source == SourcePrefix.swiftOrg {
                         return 0.9 // Slight boost - official Swift docs
-                    default:
+                    } else {
                         return 1.0
                     }
                 }()

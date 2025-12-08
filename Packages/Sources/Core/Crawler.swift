@@ -399,7 +399,7 @@ extension Core {
         // MARK: - Logging
 
         private func logInfo(_ message: String) {
-            let memoryMsg = "🧠 \(String(format: "%.1f", getMemoryUsageMB()))MB | \(message)"
+            let memoryMsg = "\(String(format: "%.1f", getMemoryUsageMB()))MB | \(message)"
             Log.info(memoryMsg, category: .crawler)
             logToFile(memoryMsg)
         }

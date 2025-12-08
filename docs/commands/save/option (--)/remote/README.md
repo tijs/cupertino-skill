@@ -36,6 +36,7 @@ The `--remote` flag enables **instant setup** by streaming pre-crawled documenta
 | evolution | `swift-evolution/` | Swift Evolution proposals |
 | archive | `archive/` | Legacy Apple programming guides |
 | swiftOrg | `swift-org/` | Swift.org documentation |
+| hig | `hig/` | Human Interface Guidelines |
 | packages | `packages/` | Package READMEs |
 
 ### State File
@@ -44,7 +45,7 @@ Progress is saved to `~/.cupertino/remote-save-state.json` for resume support:
 
 ```json
 {
-  "version": "0.2.7",
+  "version": "0.3.5",
   "started": "2025-12-04T12:00:00Z",
   "phase": "docs",
   "phasesCompleted": [],

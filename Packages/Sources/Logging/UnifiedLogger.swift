@@ -68,6 +68,7 @@ public actor UnifiedLogger {
         case samples
         case packages
         case archive
+        case hig
 
         /// Get the os.Logger for this category
         var osLogger: os.Logger {
@@ -81,6 +82,7 @@ public actor UnifiedLogger {
             case .samples: return Logging.Logger.samples
             case .packages: return Logging.Logger.packageDownloader
             case .archive: return Logging.Logger.archive
+            case .hig: return Logging.Logger.hig
             }
         }
     }

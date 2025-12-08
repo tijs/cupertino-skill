@@ -22,7 +22,8 @@ struct FetchCommand: AsyncParsableCommand {
         evolution (Swift Evolution), packages (Swift package metadata), \
         package-docs (Swift package READMEs), code (Sample code from Apple), \
         samples (Sample code from GitHub - recommended), \
-        archive (Apple Archive guides), all (all types in parallel)
+        archive (Apple Archive guides), hig (Human Interface Guidelines), \
+        all (all types in parallel)
         """
     )
     var type: FetchType = .docs
@@ -97,6 +98,11 @@ struct FetchCommand: AsyncParsableCommand {
 
         if type == .archive {
             try await runArchiveCrawl()
+            return
+        }
+
+        if type == .hig {
+            try await runHIGCrawl()
             return
         }
 
@@ -519,6 +525,38 @@ struct FetchCommand: AsyncParsableCommand {
         Logging.ConsoleLogger.output("")
         Logging.ConsoleLogger.info("✅ Crawl completed!")
         Logging.ConsoleLogger.info("   Total guides: \(stats.totalGuides)")
+        Logging.ConsoleLogger.info("   Total pages: \(stats.totalPages)")
+        Logging.ConsoleLogger.info("   New: \(stats.newPages)")
+        Logging.ConsoleLogger.info("   Updated: \(stats.updatedPages)")
+        Logging.ConsoleLogger.info("   Skipped: \(stats.skippedPages)")
+        Logging.ConsoleLogger.info("   Errors: \(stats.errors)")
+        if let duration = stats.duration {
+            Logging.ConsoleLogger.info("   Duration: \(Int(duration))s")
+        }
+        Logging.ConsoleLogger.info("\n📁 Output: \(outputURL.path)/")
+    }
+
+    private func runHIGCrawl() async throws {
+        let defaultPath = Shared.Constants.defaultHIGDirectory.path
+        let outputURL = URL(fileURLWithPath: outputDir ?? defaultPath).expandingTildeInPath
+
+        try FileManager.default.createDirectory(at: outputURL, withIntermediateDirectories: true)
+
+        Logging.ConsoleLogger.info("📖 Crawling Human Interface Guidelines...")
+        Logging.ConsoleLogger.info("   Output: \(outputURL.path)\n")
+
+        let crawler = await Core.HIGCrawler(
+            outputDirectory: outputURL,
+            forceRecrawl: force
+        )
+
+        let stats = try await crawler.crawl { progress in
+            let percent = String(format: "%.1f", progress.percentage)
+            Logging.ConsoleLogger.output("   Progress: \(percent)% - \(progress.currentItem)")
+        }
+
+        Logging.ConsoleLogger.output("")
+        Logging.ConsoleLogger.info("✅ Crawl completed!")
         Logging.ConsoleLogger.info("   Total pages: \(stats.totalPages)")
         Logging.ConsoleLogger.info("   New: \(stats.newPages)")
         Logging.ConsoleLogger.info("   Updated: \(stats.updatedPages)")

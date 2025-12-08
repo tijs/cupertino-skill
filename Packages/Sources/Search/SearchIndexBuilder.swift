@@ -14,6 +14,7 @@ extension Search {
         private let evolutionDirectory: URL?
         private let swiftOrgDirectory: URL?
         private let archiveDirectory: URL?
+        private let higDirectory: URL?
         private let indexSampleCode: Bool
 
         public init(
@@ -23,6 +24,7 @@ extension Search {
             evolutionDirectory: URL? = nil,
             swiftOrgDirectory: URL? = nil,
             archiveDirectory: URL? = nil,
+            higDirectory: URL? = nil,
             indexSampleCode: Bool = true
         ) {
             self.searchIndex = searchIndex
@@ -31,6 +33,7 @@ extension Search {
             self.evolutionDirectory = evolutionDirectory
             self.swiftOrgDirectory = swiftOrgDirectory
             self.archiveDirectory = archiveDirectory
+            self.higDirectory = higDirectory
             self.indexSampleCode = indexSampleCode
         }
 
@@ -65,6 +68,11 @@ extension Search {
             // Index Apple Archive documentation if available
             if archiveDirectory != nil {
                 try await indexArchiveDocs(onProgress: onProgress)
+            }
+
+            // Index Human Interface Guidelines if available
+            if higDirectory != nil {
+                try await indexHIGDocs(onProgress: onProgress)
             }
 
             // Index Sample Code catalog if requested
@@ -132,7 +140,7 @@ extension Search {
                 do {
                     try await searchIndex.indexDocument(
                         uri: uri,
-                        source: "apple-docs",
+                        source: Shared.Constants.SourcePrefix.appleDocs,
                         framework: pageMetadata.framework,
                         title: title,
                         content: content,
@@ -238,7 +246,7 @@ extension Search {
                 do {
                     try await searchIndex.indexStructuredDocument(
                         uri: uri,
-                        source: "apple-docs",
+                        source: Shared.Constants.SourcePrefix.appleDocs,
                         framework: framework,
                         page: structuredPage,
                         jsonData: jsonString
@@ -429,7 +437,7 @@ extension Search {
             // Swift Evolution source - no framework, just source
             try await searchIndex.indexDocument(
                 uri: uri,
-                source: "swift-evolution",
+                source: Shared.Constants.SourcePrefix.swiftEvolution,
                 framework: nil,
                 title: title,
                 content: content,
@@ -470,7 +478,8 @@ extension Search {
                 }
 
                 // Extract source from path: swift-org/{source}/... (swift-book or swift-org)
-                let source = extractFrameworkFromPath(file, relativeTo: swiftOrgDirectory) ?? "swift-org"
+                let source = extractFrameworkFromPath(file, relativeTo: swiftOrgDirectory)
+                    ?? Shared.Constants.SourcePrefix.swiftOrg
 
                 // Extract title from markdown
                 let title = extractTitle(from: content) ?? file.deletingPathExtension().lastPathComponent
@@ -487,7 +496,7 @@ extension Search {
                 let modDate = attributes?[.modificationDate] as? Date ?? Date()
 
                 do {
-                    // Use extracted source (e.g., "swift-book" or "swift-org"), no framework
+                    // Use extracted source (e.g., swift-book or swift-org prefix), no framework
                     try await searchIndex.indexDocument(
                         uri: uri,
                         source: source,
@@ -589,6 +598,106 @@ extension Search {
             }
 
             logInfo("   Apple Archive: \(indexed) indexed, \(skipped) skipped")
+        }
+
+        // MARK: - Human Interface Guidelines
+
+        private func indexHIGDocs(onProgress: (@Sendable (Int, Int) -> Void)?) async throws {
+            guard let higDirectory else {
+                return
+            }
+
+            guard FileManager.default.fileExists(atPath: higDirectory.path) else {
+                logInfo("⚠️  HIG directory not found: \(higDirectory.path)")
+                return
+            }
+
+            let markdownFiles = try findMarkdownFiles(in: higDirectory)
+
+            guard !markdownFiles.isEmpty else {
+                logInfo("⚠️  No HIG documentation found")
+                return
+            }
+
+            logInfo("🎨 Indexing \(markdownFiles.count) Human Interface Guidelines pages...")
+
+            var indexed = 0
+            var skipped = 0
+
+            for (index, file) in markdownFiles.enumerated() {
+                guard let content = try? String(contentsOf: file, encoding: .utf8) else {
+                    skipped += 1
+                    continue
+                }
+
+                // Extract category from path: hig/{category}/...
+                let category = extractFrameworkFromPath(file, relativeTo: higDirectory) ?? "general"
+
+                // Extract metadata from front matter
+                let metadata = extractHIGMetadata(from: content)
+                let title = metadata["title"] ?? extractTitle(from: content) ?? file.deletingPathExtension().lastPathComponent
+
+                // Generate URI: hig://{category}/{filename}
+                let filename = file.deletingPathExtension().lastPathComponent
+                let uri = "hig://\(category)/\(filename)"
+
+                // Calculate content hash
+                let contentHash = HashUtilities.sha256(of: content)
+
+                // Use file modification date
+                let attributes = try? FileManager.default.attributesOfItem(atPath: file.path)
+                let modDate = attributes?[.modificationDate] as? Date ?? Date()
+
+                do {
+                    // HIG source with category as framework
+                    try await searchIndex.indexDocument(
+                        uri: uri,
+                        source: Shared.Constants.SourcePrefix.hig,
+                        framework: category,
+                        title: title,
+                        content: content,
+                        filePath: file.path,
+                        contentHash: contentHash,
+                        lastCrawled: modDate
+                    )
+                    indexed += 1
+                } catch {
+                    logError("Failed to index \(uri): \(error)")
+                    skipped += 1
+                }
+
+                if (index + 1) % Shared.Constants.Interval.progressLogEvery == 0 {
+                    logInfo("   Progress: \(index + 1)/\(markdownFiles.count)")
+                }
+            }
+
+            logInfo("   HIG: \(indexed) indexed, \(skipped) skipped")
+        }
+
+        private func extractHIGMetadata(from markdown: String) -> [String: String] {
+            var metadata: [String: String] = [:]
+
+            // Look for YAML front matter
+            guard markdown.hasPrefix("---") else { return metadata }
+
+            if let endRange = markdown.range(of: "\n---", range: markdown.index(markdown.startIndex, offsetBy: 3)..<markdown.endIndex) {
+                let frontMatter = String(markdown[markdown.index(markdown.startIndex, offsetBy: 4)..<endRange.lowerBound])
+
+                for line in frontMatter.split(separator: "\n") {
+                    let parts = line.split(separator: ":", maxSplits: 1)
+                    if parts.count == 2 {
+                        let key = parts[0].trimmingCharacters(in: .whitespaces)
+                        var value = parts[1].trimmingCharacters(in: .whitespaces)
+                        // Remove quotes
+                        if value.hasPrefix("\""), value.hasSuffix("\"") {
+                            value = String(value.dropFirst().dropLast())
+                        }
+                        metadata[key] = value
+                    }
+                }
+            }
+
+            return metadata
         }
 
         private func extractArchiveMetadata(from markdown: String) -> [String: String] {

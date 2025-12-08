@@ -128,6 +128,16 @@ struct SaveCommand: AsyncParsableCommand {
             Logging.ConsoleLogger.info("   Run 'cupertino fetch --type archive' to download Apple Archive documentation")
         }
 
+        // Check if HIG directory exists
+        let higURL = effectiveBase.appendingPathComponent(Shared.Constants.Directory.hig)
+        let hasHIG = FileManager.default.fileExists(atPath: higURL.path)
+        let higDirToUse = hasHIG ? higURL : nil
+
+        if !hasHIG {
+            Logging.ConsoleLogger.info("ℹ️  HIG directory not found, skipping Human Interface Guidelines")
+            Logging.ConsoleLogger.info("   Run 'cupertino fetch --type hig' to download HIG documentation")
+        }
+
         // Build index
         let builder = Search.IndexBuilder(
             searchIndex: searchIndex,
@@ -135,7 +145,8 @@ struct SaveCommand: AsyncParsableCommand {
             docsDirectory: docsURL,
             evolutionDirectory: evolutionDirToUse,
             swiftOrgDirectory: swiftOrgDirToUse,
-            archiveDirectory: archiveDirToUse
+            archiveDirectory: archiveDirToUse,
+            higDirectory: higDirToUse
         )
 
         // Note: Using a class to hold mutable state since @Sendable closures can't capture mutable vars

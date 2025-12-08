@@ -9,6 +9,7 @@ Cupertino provides these MCP tools for AI agents to search and read documentatio
 | Tool | Description |
 |------|-------------|
 | [search_docs](search_docs/) | Full-text search across all indexed documentation |
+| [search_hig](search_hig/) | Search Human Interface Guidelines with platform/category filters |
 | [list_frameworks](list_frameworks/) | List available frameworks with document counts |
 | [read_document](read_document/) | Read a document by URI in JSON or Markdown format |
 

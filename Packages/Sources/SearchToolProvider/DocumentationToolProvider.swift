@@ -44,6 +44,15 @@ public actor DocumentationToolProvider: ToolProvider {
                     required: [Shared.Constants.MCP.schemaParamURI]
                 )
             ),
+            Tool(
+                name: Shared.Constants.MCP.toolSearchHIG,
+                description: Shared.Constants.MCP.toolSearchHIGDescription,
+                inputSchema: JSONSchema(
+                    type: Shared.Constants.MCP.schemaTypeObject,
+                    properties: nil,
+                    required: [Shared.Constants.MCP.schemaParamQuery]
+                )
+            ),
         ]
 
         return ListToolsResult(tools: tools)
@@ -57,6 +66,8 @@ public actor DocumentationToolProvider: ToolProvider {
             return try await handleListFrameworks()
         case Shared.Constants.MCP.toolReadDocument:
             return try await handleReadDocument(arguments: arguments)
+        case Shared.Constants.MCP.toolSearchHIG:
+            return try await handleSearchHIG(arguments: arguments)
         default:
             throw DocumentationToolError.unknownTool(name)
         }
@@ -189,6 +200,83 @@ public actor DocumentationToolProvider: ToolProvider {
 
         let content = ContentBlock.text(
             TextContent(text: documentContent)
+        )
+
+        return CallToolResult(content: [content])
+    }
+
+    private func handleSearchHIG(arguments: [String: AnyCodable]?) async throws -> CallToolResult {
+        guard let query = arguments?[Shared.Constants.MCP.schemaParamQuery]?.value as? String else {
+            throw DocumentationToolError.missingArgument(Shared.Constants.MCP.schemaParamQuery)
+        }
+
+        // Optional HIG-specific filters
+        let platform = arguments?[Shared.Constants.MCP.schemaParamPlatform]?.value as? String
+        let category = arguments?[Shared.Constants.MCP.schemaParamCategory]?.value as? String
+        let defaultLimit = Shared.Constants.Limit.defaultSearchLimit
+        let requestedLimit = (arguments?[Shared.Constants.MCP.schemaParamLimit]?.value as? Int) ?? defaultLimit
+        let limit = min(requestedLimit, Shared.Constants.Limit.maxSearchLimit)
+
+        // Build HIG-specific query with optional platform/category filters
+        var effectiveQuery = query
+        if let platform {
+            effectiveQuery += " \(platform)"
+        }
+        if let category {
+            effectiveQuery += " \(category)"
+        }
+
+        // Search HIG content only (source pre-set to "hig")
+        let results = try await searchIndex.search(
+            query: effectiveQuery,
+            source: Shared.Constants.SourcePrefix.hig,
+            framework: nil,
+            language: nil,
+            limit: limit,
+            includeArchive: false
+        )
+
+        // Format results as markdown
+        var markdown = "# HIG Search Results for \"\(query)\"\n\n"
+
+        if let platform {
+            markdown += "_Platform: **\(platform)**_\n\n"
+        }
+        if let category {
+            markdown += "_Category: **\(category)**_\n\n"
+        }
+
+        markdown += "Found **\(results.count)** guideline\(results.count == 1 ? "" : "s"):\n\n"
+
+        if results.isEmpty {
+            markdown += "_No Human Interface Guidelines found matching your query._\n\n"
+            markdown += "**Tips:**\n"
+            markdown += "- Try broader design terms (e.g., 'buttons', 'typography', 'navigation')\n"
+            markdown += "- Specify a platform: iOS, macOS, watchOS, visionOS, tvOS\n"
+            markdown += "- Specify a category: foundations, patterns, components, technologies, inputs\n"
+        } else {
+            for (index, result) in results.enumerated() {
+                markdown += "## \(index + 1). \(result.title)\n\n"
+                markdown += "- **URI:** `\(result.uri)`\n"
+                markdown += "- **Score:** \(String(format: Shared.Constants.MCP.formatScore, result.score))\n\n"
+
+                // Add summary
+                markdown += result.summary
+                markdown += "\n\n"
+
+                // Add separator except for last item
+                if index < results.count - 1 {
+                    markdown += "---\n\n"
+                }
+            }
+
+            markdown += "\n\n"
+            markdown += Shared.Constants.MCP.tipUseResourcesRead
+            markdown += "\n"
+        }
+
+        let content = ContentBlock.text(
+            TextContent(text: markdown)
         )
 
         return CallToolResult(content: [content])

@@ -160,7 +160,7 @@ let targets: [Target] = {
 
     let remoteSyncTarget = Target.target(
         name: "RemoteSync",
-        dependencies: []
+        dependencies: ["Shared"]
     )
     let remoteSyncTestsTarget = Target.testTarget(
         name: "RemoteSyncTests",
