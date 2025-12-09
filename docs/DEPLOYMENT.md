@@ -18,6 +18,10 @@ This guide covers the complete release process for Cupertino.
 
 ## Quick Release Workflow
 
+> **⚠️ ORDER MATTERS:** You MUST commit the version bump BEFORE creating the tag.
+> The tag must point to a commit that already has the correct version in Constants.swift.
+> If you tag first, GitHub Actions will build a binary with the old version.
+
 ```bash
 # 1. Update version and changelog
 edit Packages/Sources/Shared/Constants.swift  # version = "X.Y.Z"
