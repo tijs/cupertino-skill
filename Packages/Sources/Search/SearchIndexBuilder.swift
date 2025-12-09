@@ -90,12 +90,8 @@ extension Search {
         // MARK: - Private Methods
 
         private func indexAppleDocs(onProgress: (@Sendable (Int, Int) -> Void)?) async throws {
-            // Use metadata if available, otherwise scan directory
-            if let metadata {
-                try await indexAppleDocsFromMetadata(metadata: metadata, onProgress: onProgress)
-            } else {
-                try await indexAppleDocsFromDirectory(onProgress: onProgress)
-            }
+            // Always scan directory - metadata is for fetching, not indexing
+            try await indexAppleDocsFromDirectory(onProgress: onProgress)
         }
 
         private func indexAppleDocsFromMetadata(
@@ -395,6 +391,13 @@ extension Search {
                     continue
                 }
 
+                // Only index accepted/implemented proposals
+                let status = extractProposalStatus(from: content)
+                guard isAcceptedProposal(status) else {
+                    skipped += 1
+                    continue
+                }
+
                 do {
                     try await indexProposal(file: file, content: content)
                     indexed += 1
@@ -447,6 +450,47 @@ extension Search {
             )
         }
 
+        /// Extract status from Swift Evolution proposal markdown
+        private func extractProposalStatus(from markdown: String) -> String? {
+            // Format: "* Status: **Implemented (Swift 2.2)**" or "* Status: **Accepted**"
+            guard let regex = try? NSRegularExpression(pattern: Shared.Constants.Pattern.seStatus),
+                  let match = regex.firstMatch(
+                      in: markdown,
+                      range: NSRange(markdown.startIndex..., in: markdown)
+                  ),
+                  match.numberOfRanges > 1,
+                  let statusRange = Range(match.range(at: 1), in: markdown)
+            else {
+                return nil
+            }
+            return String(markdown[statusRange])
+        }
+
+        /// Check if proposal status indicates it was accepted/implemented
+        private func isAcceptedProposal(_ status: String?) -> Bool {
+            guard let status = status?.lowercased() else {
+                return false
+            }
+            // Accept proposals that are "Implemented", "Accepted", or "Accepted with revisions"
+            return status.contains("implemented") || status.contains("accepted")
+        }
+
+        /// Check if a page is a 404 error page
+        private func is404Page(title: String, content: String) -> Bool {
+            // Check title
+            if title.lowercased() == "not found" {
+                return true
+            }
+            // Check content for common 404 indicators
+            let lowerContent = content.lowercased()
+            if lowerContent.contains("the requested url was not found") ||
+                lowerContent.contains("404 not found") ||
+                lowerContent.contains("page not found") {
+                return true
+            }
+            return false
+        }
+
         // MARK: - Swift.org Documentation
 
         private func indexSwiftOrgDocs(onProgress: (@Sendable (Int, Int) -> Void)?) async throws {
@@ -459,54 +503,100 @@ extension Search {
                 return
             }
 
-            let markdownFiles = try findMarkdownFiles(in: swiftOrgDirectory)
+            // Use findDocFiles to handle both .json and .md files (same as Apple docs)
+            let docFiles = try findDocFiles(in: swiftOrgDirectory)
 
-            guard !markdownFiles.isEmpty else {
+            guard !docFiles.isEmpty else {
                 logInfo("⚠️  No Swift.org documentation found")
                 return
             }
 
-            logInfo("🔶 Indexing \(markdownFiles.count) Swift.org documentation pages...")
+            logInfo("🔶 Indexing \(docFiles.count) Swift.org documentation pages...")
 
             var indexed = 0
             var skipped = 0
 
-            for (index, file) in markdownFiles.enumerated() {
-                guard let content = try? String(contentsOf: file, encoding: .utf8) else {
-                    skipped += 1
-                    continue
-                }
-
+            for (index, file) in docFiles.enumerated() {
                 // Extract source from path: swift-org/{source}/... (swift-book or swift-org)
                 let source = extractFrameworkFromPath(file, relativeTo: swiftOrgDirectory)
                     ?? Shared.Constants.SourcePrefix.swiftOrg
 
-                // Extract title from markdown
-                let title = extractTitle(from: content) ?? file.deletingPathExtension().lastPathComponent
+                // Handle JSON and MD files (same pattern as Apple docs)
+                let structuredPage: StructuredDocumentationPage
+                let jsonString: String
+
+                if file.pathExtension == "json" {
+                    // JSON format: decode directly
+                    do {
+                        let jsonData = try Data(contentsOf: file)
+                        jsonString = String(data: jsonData, encoding: .utf8) ?? "{}"
+                        let decoder = JSONDecoder()
+                        decoder.dateDecodingStrategy = .iso8601
+                        structuredPage = try decoder.decode(StructuredDocumentationPage.self, from: jsonData)
+                    } catch {
+                        logError("Failed to decode \(file.lastPathComponent): \(error)")
+                        skipped += 1
+                        continue
+                    }
+                } else {
+                    // Markdown format: convert to StructuredDocumentationPage
+                    guard let mdContent = try? String(contentsOf: file, encoding: .utf8) else {
+                        skipped += 1
+                        continue
+                    }
+
+                    let pageURL = URL(string: "https://www.swift.org/documentation/\(file.deletingPathExtension().lastPathComponent)")
+                    guard let converted = MarkdownToStructuredPage.convert(mdContent, url: pageURL) else {
+                        logError("Failed to convert \(file.lastPathComponent) to structured page")
+                        skipped += 1
+                        continue
+                    }
+                    structuredPage = converted
+
+                    let encoder = JSONEncoder()
+                    encoder.dateEncodingStrategy = .iso8601
+                    guard let jsonData = try? encoder.encode(structuredPage),
+                          let json = String(data: jsonData, encoding: .utf8) else {
+                        logError("Failed to encode \(file.lastPathComponent) to JSON")
+                        skipped += 1
+                        continue
+                    }
+                    jsonString = json
+                }
+
+                // Skip 404/error pages
+                let title = structuredPage.title
+                let content = structuredPage.rawMarkdown ?? structuredPage.overview ?? ""
+                if is404Page(title: title, content: content) {
+                    skipped += 1
+                    continue
+                }
 
                 // Generate URI: {source}://{filename}
                 let filename = file.deletingPathExtension().lastPathComponent
                 let uri = "\(source)://\(filename)"
 
-                // Calculate content hash
-                let contentHash = HashUtilities.sha256(of: content)
-
-                // Use file modification date
-                let attributes = try? FileManager.default.attributesOfItem(atPath: file.path)
-                let modDate = attributes?[.modificationDate] as? Date ?? Date()
-
                 do {
-                    // Use extracted source (e.g., swift-book or swift-org prefix), no framework
-                    try await searchIndex.indexDocument(
+                    // Use source as framework for swift-org (swift-book or swift-org)
+                    try await searchIndex.indexStructuredDocument(
                         uri: uri,
                         source: source,
-                        framework: nil,
-                        title: title,
-                        content: content,
-                        filePath: file.path,
-                        contentHash: contentHash,
-                        lastCrawled: modDate
+                        framework: source,
+                        page: structuredPage,
+                        jsonData: jsonString
                     )
+
+                    // Index code examples if present
+                    if !structuredPage.codeExamples.isEmpty {
+                        let examples = structuredPage.codeExamples.map {
+                            (code: $0.code, language: $0.language ?? "swift")
+                        }
+                        try await searchIndex.indexCodeExamples(
+                            docUri: uri,
+                            codeExamples: examples
+                        )
+                    }
+
                     indexed += 1
                 } catch {
                     logError("Failed to index \(uri): \(error)")
@@ -514,7 +604,7 @@ extension Search {
                 }
 
                 if (index + 1) % Shared.Constants.Interval.progressLogEvery == 0 {
-                    logInfo("   Progress: \(index + 1)/\(markdownFiles.count)")
+                    logInfo("   Progress: \(index + 1)/\(docFiles.count)")
                 }
             }
 

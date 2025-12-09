@@ -55,8 +55,8 @@ struct FetchCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Resume from saved session (auto-detects and continues)")
     var resume: Bool = false
 
-    @Flag(name: .long, help: "Only download accepted/implemented proposals (evolution type only)")
-    var onlyAccepted: Bool = false
+    @Flag(name: .long, inversion: .prefixedNo, help: "Only download accepted/implemented proposals (evolution type only)")
+    var onlyAccepted: Bool = true
 
     @Option(name: .long, help: "Maximum number of items to fetch (packages/code types only)")
     var limit: Int?
@@ -272,9 +272,11 @@ struct FetchCommand: AsyncParsableCommand {
         url: URL,
         outputDirectory: URL
     ) -> Shared.Configuration {
+        // Use user-provided prefixes, or fall back to type defaults
         let prefixes: [String]? = allowedPrefixes?
             .split(separator: ",")
             .map { String($0.trimmingCharacters(in: .whitespaces)) }
+            ?? type.defaultAllowedPrefixes
 
         return Shared.Configuration(
             crawler: Shared.CrawlerConfiguration(

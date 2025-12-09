@@ -35,7 +35,7 @@ extension Cupertino {
         var defaultURL: String {
             switch self {
             case .docs: return Shared.Constants.BaseURL.appleDeveloperDocs
-            case .swift: return Shared.Constants.BaseURL.swiftBook
+            case .swift: return Shared.Constants.BaseURL.swiftOrg
             case .evolution: return "" // N/A - uses different fetcher
             case .packages: return "" // API-based fetching
             case .packageDocs: return "" // GitHub raw content downloading
@@ -44,6 +44,19 @@ extension Cupertino {
             case .archive: return Shared.Constants.BaseURL.appleArchive
             case .hig: return Shared.Constants.BaseURL.appleHIG
             case .all: return "" // N/A - fetches all types sequentially
+            }
+        }
+
+        var defaultAllowedPrefixes: [String]? {
+            switch self {
+            case .swift:
+                // Swift docs span both www.swift.org and docs.swift.org (swift-book)
+                return [
+                    Shared.Constants.BaseURL.swiftOrg,
+                    Shared.Constants.BaseURL.swiftBook,
+                ]
+            default:
+                return nil // Auto-detect from start URL
             }
         }
 

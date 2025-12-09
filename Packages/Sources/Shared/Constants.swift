@@ -287,10 +287,10 @@ extension Shared {
 
             // MARK: Swift.org
 
-            /// Swift.org Documentation Base
-            public static let swiftOrg = "https://docs.swift.org/"
+            /// Swift.org Documentation Base (www.swift.org for general docs)
+            public static let swiftOrg = "https://www.swift.org/documentation/"
 
-            /// Swift Book Documentation
+            /// Swift Book Documentation (hosted at docs.swift.org)
             public static let swiftBook = "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/"
 
             // MARK: GitHub

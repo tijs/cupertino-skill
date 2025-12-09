@@ -58,9 +58,6 @@ struct SaveCommand: AsyncParsableCommand {
             ?? Shared.Constants.defaultBaseDirectory
 
         // Individual options override the base-derived paths
-        let metadataURL = metadataFile.map { URL(fileURLWithPath: $0).expandingTildeInPath }
-            ?? effectiveBase.appendingPathComponent(Shared.Constants.FileName.metadata)
-
         let docsURL = docsDir.map { URL(fileURLWithPath: $0).expandingTildeInPath }
             ?? effectiveBase.appendingPathComponent(Shared.Constants.Directory.docs)
 
@@ -70,23 +67,8 @@ struct SaveCommand: AsyncParsableCommand {
         let swiftOrgURL = swiftOrgDir.map { URL(fileURLWithPath: $0).expandingTildeInPath }
             ?? effectiveBase.appendingPathComponent(Shared.Constants.Directory.swiftOrg)
 
-        let packagesURL = packagesDir.map { URL(fileURLWithPath: $0).expandingTildeInPath }
-            ?? effectiveBase.appendingPathComponent(Shared.Constants.Directory.packages)
-
         let searchDBURL = searchDB.map { URL(fileURLWithPath: $0).expandingTildeInPath }
             ?? effectiveBase.appendingPathComponent(Shared.Constants.FileName.searchDatabase)
-
-        // Load metadata if it exists (optional)
-        let metadata: CrawlMetadata?
-        if FileManager.default.fileExists(atPath: metadataURL.path) {
-            Logging.ConsoleLogger.info("📖 Loading metadata...")
-            metadata = try CrawlMetadata.load(from: metadataURL)
-            Logging.ConsoleLogger.info("   Found \(metadata!.pages.count) pages in metadata")
-        } else {
-            Logging.ConsoleLogger.info("ℹ️  No metadata.json found - will scan directory structure")
-            Logging.ConsoleLogger.info("   Note: Resume functionality requires metadata.json")
-            metadata = nil
-        }
 
         // Delete existing database to avoid FTS5 duplicate rows
         // (FTS5 doesn't support INSERT OR REPLACE properly)
@@ -138,10 +120,10 @@ struct SaveCommand: AsyncParsableCommand {
             Logging.ConsoleLogger.info("   Run 'cupertino fetch --type hig' to download HIG documentation")
         }
 
-        // Build index
+        // Build index (no metadata needed - just scans directories)
         let builder = Search.IndexBuilder(
             searchIndex: searchIndex,
-            metadata: metadata,
+            metadata: nil,
             docsDirectory: docsURL,
             evolutionDirectory: evolutionDirToUse,
             swiftOrgDirectory: swiftOrgDirToUse,

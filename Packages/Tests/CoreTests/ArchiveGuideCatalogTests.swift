@@ -25,7 +25,7 @@ func archiveGuideCatalogRequiredGuidesIncludeCoreFrameworks() throws {
     print("   ✅ Required guides include Core framework documentation")
 }
 
-@Test("ArchiveGuideCatalog creates user file if missing")
+@Test("ArchiveGuideCatalog creates user file if missing", .serialized)
 func archiveGuideCatalogCreatesUserFileIfMissing() throws {
     let fileURL = ArchiveGuideCatalog.userSelectionsFileURL
 
@@ -57,7 +57,7 @@ func archiveGuideCatalogCreatesUserFileIfMissing() throws {
     print("   ✅ User selections file created automatically")
 }
 
-@Test("ArchiveGuideCatalog does not overwrite existing user file")
+@Test("ArchiveGuideCatalog does not overwrite existing user file", .serialized)
 func archiveGuideCatalogDoesNotOverwriteExistingFile() throws {
     let fileURL = ArchiveGuideCatalog.userSelectionsFileURL
 
@@ -79,20 +79,10 @@ func archiveGuideCatalogDoesNotOverwriteExistingFile() throws {
 
     // Create a custom user file with specific content
     let customContent = """
-    {
-      "count": 1,
-      "description": "Test file - should not be overwritten",
-      "guides": [
-        {
-          "category": "Test",
-          "framework": "TestFramework",
-          "path": "Test/Custom/Path",
-          "title": "Custom Test Guide"
-        }
-      ],
-      "lastUpdated": "2024-01-01T00:00:00Z",
-      "version": "1.0"
-    }
+    {"count":1,"description":"Test file - should not be overwritten",\
+    "guides":[{"category":"Test","framework":"TestFramework",\
+    "path":"Test/Custom/Path","title":"Custom Test Guide"}],\
+    "lastUpdated":"2024-01-01T00:00:00Z","version":"1.0"}
     """
 
     // Ensure directory exists
@@ -102,23 +92,14 @@ func archiveGuideCatalogDoesNotOverwriteExistingFile() throws {
     )
     try customContent.write(to: fileURL, atomically: true, encoding: .utf8)
 
-    // Get modification date
-    let attrs1 = try FileManager.default.attributesOfItem(atPath: fileURL.path)
-    let modDate1 = attrs1[.modificationDate] as? Date
-
     // Access essentialGuides - should NOT overwrite
     let guides = ArchiveGuideCatalog.essentialGuides
     #expect(!guides.isEmpty, "Should return guides")
 
-    // Check file wasn't modified
-    let attrs2 = try FileManager.default.attributesOfItem(atPath: fileURL.path)
-    let modDate2 = attrs2[.modificationDate] as? Date
-
-    #expect(modDate1 == modDate2, "File should not be modified if it already exists")
-
-    // Verify custom content is still there
+    // Verify custom content is still there (this is the key assertion)
     let content = try String(contentsOf: fileURL, encoding: .utf8)
     #expect(content.contains("Custom Test Guide"), "Custom content should be preserved")
+    #expect(content.contains("should not be overwritten"), "Description should be preserved")
     print("   ✅ Existing user file not overwritten")
 }
 

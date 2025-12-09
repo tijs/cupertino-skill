@@ -385,19 +385,25 @@ func crawlerStateLoadsExistingMetadata() async throws {
 
     let metadataFile = tempDir.appendingPathComponent("metadata.json")
 
-    // Create initial metadata with some pages
+    // Create actual files that match the metadata
+    let doc1Path = tempDir.appendingPathComponent("doc1.md")
+    let doc2Path = tempDir.appendingPathComponent("doc2.md")
+    try "# Doc 1".write(to: doc1Path, atomically: true, encoding: .utf8)
+    try "# Doc 2".write(to: doc2Path, atomically: true, encoding: .utf8)
+
+    // Create initial metadata with some pages (file paths must match real files)
     var metadata = CrawlMetadata()
     metadata.pages["https://example.com/doc1"] = PageMetadata(
         url: "https://example.com/doc1",
         framework: "test",
-        filePath: "/test/doc1.md",
+        filePath: doc1Path.path,
         contentHash: "hash1",
         depth: 0
     )
     metadata.pages["https://example.com/doc2"] = PageMetadata(
         url: "https://example.com/doc2",
         framework: "test",
-        filePath: "/test/doc2.md",
+        filePath: doc2Path.path,
         contentHash: "hash2",
         depth: 1
     )
