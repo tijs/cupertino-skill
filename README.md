@@ -152,13 +152,13 @@ cupertino save
 {
   "mcpServers": {
     "cupertino": {
-      "command": "/usr/local/bin/cupertino"
+      "command": "/opt/homebrew/bin/cupertino"
     }
   }
 }
 ```
 
-> **Note:** The `cupertino` command defaults to `cupertino serve` when run without arguments.
+> **Note:** Use `/opt/homebrew/bin/cupertino` for Homebrew on Apple Silicon, `/usr/local/bin/cupertino` for Intel or manual install. Run `which cupertino` to find your path.
 
 2. **Restart Claude Desktop**
 
@@ -172,7 +172,7 @@ cupertino save
 If you're using [Claude Code](https://docs.anthropic.com/en/docs/claude-code), you can add Cupertino as an MCP server with a single command:
 
 ```bash
-claude mcp add cupertino --scope user -- /usr/local/bin/cupertino
+claude mcp add cupertino --scope user -- $(which cupertino)
 ```
 
 This registers Cupertino globally for all your projects. Claude Code will automatically have access to Apple documentation search.
