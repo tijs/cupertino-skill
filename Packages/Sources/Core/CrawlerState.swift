@@ -18,14 +18,56 @@ public actor CrawlerState {
         // Load existing metadata if available
         if FileManager.default.fileExists(atPath: configuration.metadataFile.path) {
             do {
-                metadata = try CrawlMetadata.load(from: configuration.metadataFile)
-                Logging.Logger.crawler.info("✅ Loaded existing metadata: \(metadata.pages.count) pages")
+                let loadedMetadata = try CrawlMetadata.load(from: configuration.metadataFile)
+
+                // Validate metadata by checking if files actually exist
+                if Self.validateMetadata(loadedMetadata, metadataFile: configuration.metadataFile) {
+                    metadata = loadedMetadata
+                    Logging.Logger.crawler.info("✅ Loaded existing metadata: \(metadata.pages.count) pages")
+                } else {
+                    Logging.Logger.crawler.warning("⚠️  Not trusting lying metadata - file counts don't match")
+                    print("⚠️  Not trusting lying metadata - starting fresh")
+                }
             } catch {
                 Logging.Logger.crawler.warning("⚠️  Failed to load metadata: \(error.localizedDescription)")
                 print("⚠️  Failed to load metadata: \(error.localizedDescription)")
                 print("   Starting with fresh metadata")
             }
         }
+    }
+
+    /// Validate that metadata matches reality by spot-checking file existence
+    private static func validateMetadata(_ metadata: CrawlMetadata, metadataFile: URL) -> Bool {
+        // If metadata claims many pages, verify some actually exist
+        guard !metadata.pages.isEmpty else { return true }
+
+        // Check if the output directory exists
+        let outputDir = metadataFile.deletingLastPathComponent()
+        guard FileManager.default.fileExists(atPath: outputDir.path) else {
+            return false
+        }
+
+        // Spot check: verify at least 10% of claimed files exist (up to 100 checks)
+        let samplesToCheck = min(100, max(1, metadata.pages.count / 10))
+        let pagesList = Array(metadata.pages.values)
+        var existingCount = 0
+
+        for sampleIdx in 0..<samplesToCheck {
+            let index = sampleIdx * pagesList.count / samplesToCheck
+            let page = pagesList[index]
+            if FileManager.default.fileExists(atPath: page.filePath) {
+                existingCount += 1
+            }
+        }
+
+        // If less than 50% of sampled files exist, metadata is lying
+        let existenceRatio = Double(existingCount) / Double(samplesToCheck)
+        if existenceRatio < 0.5 {
+            Logging.Logger.crawler.warning("⚠️  Only \(Int(existenceRatio * 100))% of metadata files exist")
+            return false
+        }
+
+        return true
     }
 
     // MARK: - Change Detection

@@ -244,6 +244,19 @@ extension Search {
             CREATE INDEX IF NOT EXISTS idx_docs_kind ON docs_structured(kind);
             CREATE INDEX IF NOT EXISTS idx_docs_module ON docs_structured(module);
 
+            -- Framework aliases: maps identifier, import name, and display name
+            -- identifier: appintents (lowercase, URL path, folder name)
+            -- import_name: AppIntents (CamelCase, Swift import statement)
+            -- display_name: App Intents (human-readable, from JSON module field)
+            CREATE TABLE IF NOT EXISTS framework_aliases (
+                identifier TEXT PRIMARY KEY,
+                import_name TEXT NOT NULL,
+                display_name TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_alias_import ON framework_aliases(import_name);
+            CREATE INDEX IF NOT EXISTS idx_alias_display ON framework_aliases(display_name);
+
             CREATE TABLE IF NOT EXISTS packages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
@@ -855,6 +868,11 @@ extension Search {
             page: StructuredDocumentationPage,
             jsonData: String
         ) async throws {
+            // Register framework alias if module is available
+            if let module = page.module, !module.isEmpty {
+                try await registerFrameworkAlias(identifier: framework, displayName: module)
+            }
+
             // First, index the basic document (FTS + metadata with json_data)
             // Extract optimized content based on document kind to improve BM25 ranking
             let content = extractOptimizedContent(from: page)
@@ -1078,7 +1096,8 @@ extension Search {
                 let summary = sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? ""
                 let wordCount = Int(sqlite3_column_int(statement, 4))
                 let filePath = sqlite3_column_text(statement, 5).map { String(cString: $0) } ?? ""
-                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) } ?? "apple-docs"
+                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) }
+                    ?? Shared.Constants.SourcePrefix.appleDocs
 
                 results.append(Search.Result(
                     uri: uri,
@@ -1132,7 +1151,8 @@ extension Search {
                 let summary = sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? ""
                 let wordCount = Int(sqlite3_column_int(statement, 4))
                 let filePath = sqlite3_column_text(statement, 5).map { String(cString: $0) } ?? ""
-                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) } ?? "apple-docs"
+                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) }
+                    ?? Shared.Constants.SourcePrefix.appleDocs
 
                 results.append(Search.Result(
                     uri: uri,
@@ -1198,7 +1218,8 @@ extension Search {
                 let summary = sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? ""
                 let wordCount = Int(sqlite3_column_int(statement, 4))
                 let filePath = sqlite3_column_text(statement, 5).map { String(cString: $0) } ?? ""
-                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) } ?? "apple-docs"
+                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) }
+                    ?? Shared.Constants.SourcePrefix.appleDocs
 
                 results.append(Search.Result(
                     uri: uri,
@@ -1252,7 +1273,8 @@ extension Search {
                 let summary = sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? ""
                 let wordCount = Int(sqlite3_column_int(statement, 4))
                 let filePath = sqlite3_column_text(statement, 5).map { String(cString: $0) } ?? ""
-                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) } ?? "apple-docs"
+                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) }
+                    ?? Shared.Constants.SourcePrefix.appleDocs
 
                 results.append(Search.Result(
                     uri: uri,
@@ -1306,7 +1328,8 @@ extension Search {
                 let summary = sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? ""
                 let wordCount = Int(sqlite3_column_int(statement, 4))
                 let filePath = sqlite3_column_text(statement, 5).map { String(cString: $0) } ?? ""
-                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) } ?? "apple-docs"
+                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) }
+                    ?? Shared.Constants.SourcePrefix.appleDocs
 
                 results.append(Search.Result(
                     uri: uri,
@@ -1372,7 +1395,8 @@ extension Search {
                 let summary = sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? ""
                 let wordCount = Int(sqlite3_column_int(statement, 4))
                 let filePath = sqlite3_column_text(statement, 5).map { String(cString: $0) } ?? ""
-                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) } ?? "apple-docs"
+                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) }
+                    ?? Shared.Constants.SourcePrefix.appleDocs
 
                 results.append(Search.Result(
                     uri: uri,
@@ -1438,7 +1462,8 @@ extension Search {
                 let summary = sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? ""
                 let wordCount = Int(sqlite3_column_int(statement, 4))
                 let filePath = sqlite3_column_text(statement, 5).map { String(cString: $0) } ?? ""
-                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) } ?? "apple-docs"
+                let source = sqlite3_column_text(statement, 6).map { String(cString: $0) }
+                    ?? Shared.Constants.SourcePrefix.appleDocs
 
                 results.append(Search.Result(
                     uri: uri,
@@ -1458,20 +1483,8 @@ extension Search {
         // MARK: - Searching
 
         /// Known source prefixes that should be treated as source filters when detected in query.
-        /// - apple-docs: Apple Developer documentation
-        /// - swift-book: Swift Book documentation from docs.swift.org
-        /// - swift-org: Swift.org documentation
-        /// - swift-evolution: Swift Evolution proposals
-        /// - packages: Swift Package documentation
-        /// - apple-sample-code: Apple sample code projects
-        private static let knownSourcePrefixes = [
-            "apple-docs",
-            "swift-book",
-            "swift-org",
-            "swift-evolution",
-            "packages",
-            "apple-sample-code",
-        ]
+        /// See Shared.Constants.SourcePrefix for available prefixes.
+        private static let knownSourcePrefixes = Shared.Constants.SourcePrefix.allPrefixes
 
         /// Extract source prefix from query if present.
         /// - Returns: (detectedSource, remainingQuery)
@@ -1513,6 +1526,7 @@ extension Search {
         ///   - framework: Optional framework filter (swiftui, foundation, etc. - only for apple-docs)
         ///   - language: Optional language filter (swift, objc)
         ///   - limit: Maximum number of results
+        // swiftlint:disable:next cyclomatic_complexity
         public func search(
             query: String,
             source: String? = nil,
@@ -1536,6 +1550,14 @@ extension Search {
 
             // Use explicit source or detected source
             let effectiveSource = source ?? detectedSource
+
+            // Resolve framework input to identifier (supports "appintents", "AppIntents", "App Intents")
+            let effectiveFramework: String?
+            if let framework {
+                effectiveFramework = try await resolveFrameworkIdentifier(framework)
+            } else {
+                effectiveFramework = nil
+            }
 
             // Check if user explicitly requested archive
             let archiveRequested = effectiveSource == "apple-archive"
@@ -1567,7 +1589,7 @@ extension Search {
                 // Exclude apple-archive by default unless explicitly requested or includeArchive is true
                 sql += " AND f.source != 'apple-archive'"
             }
-            if framework != nil {
+            if effectiveFramework != nil {
                 sql += " AND f.framework = ?"
             }
             if language != nil {
@@ -1596,8 +1618,8 @@ extension Search {
                 sqlite3_bind_text(statement, paramIndex, (effectiveSource as NSString).utf8String, -1, nil)
                 paramIndex += 1
             }
-            if let framework {
-                sqlite3_bind_text(statement, paramIndex, (framework as NSString).utf8String, -1, nil)
+            if let effectiveFramework {
+                sqlite3_bind_text(statement, paramIndex, (effectiveFramework as NSString).utf8String, -1, nil)
                 paramIndex += 1
             }
             if let language {
@@ -1721,22 +1743,25 @@ extension Search {
 
                 // Apply source-based ranking multiplier
                 // Prefer modern Apple docs over archived guides (but archives still valuable)
+                // swiftlint:disable:next nesting
+                // Justification: typealias used inline to reference long constant path concisely
+                typealias SourcePrefix = Shared.Constants.SourcePrefix
                 let sourceMultiplier: Double = {
                     // Penalize release notes - they match almost every query but rarely what user wants
                     if uri.contains("release-notes") {
                         return 2.5 // Strong penalty - release notes pollute general searches
                     }
 
-                    switch source {
-                    case "apple-docs":
+                    // Use if-else to allow constant comparisons
+                    if source == SourcePrefix.appleDocs {
                         return 1.0 // Baseline - modern docs
-                    case "apple-archive":
+                    } else if source == SourcePrefix.appleArchive {
                         return 1.5 // Slight penalty - archived guides (older but foundational)
-                    case "swift-evolution":
+                    } else if source == SourcePrefix.swiftEvolution {
                         return 1.3 // Slight penalty - proposals (reference, not tutorials)
-                    case "swift-book", "swift-org":
+                    } else if source == SourcePrefix.swiftBook || source == SourcePrefix.swiftOrg {
                         return 0.9 // Slight boost - official Swift docs
-                    default:
+                    } else {
                         return 1.0
                     }
                 }()
@@ -1874,6 +1899,149 @@ extension Search {
                 let framework = String(cString: frameworkPtr)
                 let count = Int(sqlite3_column_int(statement, 1))
                 frameworks[framework] = count
+            }
+
+            return frameworks
+        }
+
+        // MARK: - Framework Aliases
+
+        /// Framework info with all three name forms
+        public struct FrameworkInfo: Sendable {
+            public let identifier: String // appintents
+            public let importName: String // AppIntents
+            public let displayName: String // App Intents
+            public let docCount: Int
+        }
+
+        /// Register a framework alias (called during indexing when module is available)
+        /// - Parameters:
+        ///   - identifier: lowercase identifier from folder/URL (e.g., "appintents")
+        ///   - displayName: display name from JSON module field (e.g., "App Intents")
+        public func registerFrameworkAlias(identifier: String, displayName: String) async throws {
+            guard let database else {
+                throw SearchError.databaseNotInitialized
+            }
+
+            // Derive import name by removing spaces from display name
+            let importName = displayName.replacingOccurrences(of: " ", with: "")
+
+            let sql = """
+            INSERT INTO framework_aliases (identifier, import_name, display_name)
+            VALUES (?, ?, ?)
+            ON CONFLICT(identifier) DO UPDATE SET
+                import_name = excluded.import_name,
+                display_name = excluded.display_name;
+            """
+
+            var statement: OpaquePointer?
+            defer { sqlite3_finalize(statement) }
+
+            guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK else {
+                return // Silently fail - alias registration is not critical
+            }
+
+            sqlite3_bind_text(statement, 1, (identifier as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 2, (importName as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 3, (displayName as NSString).utf8String, -1, nil)
+
+            _ = sqlite3_step(statement)
+        }
+
+        /// Resolve any framework input (identifier, import name, or display name) to identifier
+        /// - Parameter input: Any of the three forms (e.g., "appintents", "AppIntents", "App Intents")
+        /// - Returns: The identifier form (e.g., "appintents"), or nil if not found
+        public func resolveFrameworkIdentifier(_ input: String) async throws -> String? {
+            guard let database else {
+                throw SearchError.databaseNotInitialized
+            }
+
+            // First try: exact match on identifier (most common case)
+            let normalizedInput = input.lowercased().replacingOccurrences(of: " ", with: "")
+
+            // Check if identifier exists directly
+            let checkSql = "SELECT identifier FROM framework_aliases WHERE identifier = ? LIMIT 1;"
+            var checkStmt: OpaquePointer?
+            defer { sqlite3_finalize(checkStmt) }
+
+            if sqlite3_prepare_v2(database, checkSql, -1, &checkStmt, nil) == SQLITE_OK {
+                sqlite3_bind_text(checkStmt, 1, (normalizedInput as NSString).utf8String, -1, nil)
+                if sqlite3_step(checkStmt) == SQLITE_ROW,
+                   let ptr = sqlite3_column_text(checkStmt, 0) {
+                    return String(cString: ptr)
+                }
+            }
+
+            // Second try: match on import_name or display_name
+            let sql = """
+            SELECT identifier FROM framework_aliases
+            WHERE import_name = ? OR display_name = ? OR LOWER(display_name) = ?
+            LIMIT 1;
+            """
+
+            var statement: OpaquePointer?
+            defer { sqlite3_finalize(statement) }
+
+            guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK else {
+                return nil
+            }
+
+            sqlite3_bind_text(statement, 1, (input as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 2, (input as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 3, (input.lowercased() as NSString).utf8String, -1, nil)
+
+            if sqlite3_step(statement) == SQLITE_ROW,
+               let ptr = sqlite3_column_text(statement, 0) {
+                return String(cString: ptr)
+            }
+
+            // Fallback: return normalized input (might be a valid framework not in alias table yet)
+            return normalizedInput
+        }
+
+        /// List all frameworks with full alias info and document counts
+        public func listFrameworksWithAliases() async throws -> [FrameworkInfo] {
+            guard let database else {
+                throw SearchError.databaseNotInitialized
+            }
+
+            let sql = """
+            SELECT
+                m.framework,
+                COALESCE(a.import_name, m.framework) as import_name,
+                COALESCE(a.display_name, m.framework) as display_name,
+                COUNT(*) as count
+            FROM docs_metadata m
+            LEFT JOIN framework_aliases a ON m.framework = a.identifier
+            GROUP BY m.framework
+            ORDER BY m.framework;
+            """
+
+            var statement: OpaquePointer?
+            defer { sqlite3_finalize(statement) }
+
+            guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK else {
+                let errorMessage = String(cString: sqlite3_errmsg(database))
+                throw SearchError.searchFailed("List frameworks with aliases failed: \(errorMessage)")
+            }
+
+            var frameworks: [FrameworkInfo] = []
+
+            while sqlite3_step(statement) == SQLITE_ROW {
+                guard let identifierPtr = sqlite3_column_text(statement, 0),
+                      let importNamePtr = sqlite3_column_text(statement, 1),
+                      let displayNamePtr = sqlite3_column_text(statement, 2)
+                else {
+                    continue
+                }
+
+                let info = FrameworkInfo(
+                    identifier: String(cString: identifierPtr),
+                    importName: String(cString: importNamePtr),
+                    displayName: String(cString: displayNamePtr),
+                    docCount: Int(sqlite3_column_int(statement, 3))
+                )
+                frameworks.append(info)
             }
 
             return frameworks

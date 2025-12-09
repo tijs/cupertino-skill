@@ -17,14 +17,15 @@ struct SettingsView {
 
         let title = "Settings"
 
+        typealias Dir = Shared.Constants.Directory
         let settings = [
             SettingItem(label: "Base Directory", value: baseDirectory, editable: true),
-            SettingItem(label: "Docs Directory", value: "docs", editable: false),
-            SettingItem(label: "Swift Evolution", value: "swift-evolution", editable: false),
-            SettingItem(label: "Swift.org", value: "swift-org", editable: false),
-            SettingItem(label: "Swift Book", value: "swift-book", editable: false),
-            SettingItem(label: "Packages", value: "packages", editable: false),
-            SettingItem(label: "Sample Code", value: "sample-code", editable: false),
+            SettingItem(label: "Docs Directory", value: Dir.docs, editable: false),
+            SettingItem(label: "Swift Evolution", value: Dir.swiftEvolution, editable: false),
+            SettingItem(label: "Swift.org", value: Dir.swiftOrg, editable: false),
+            SettingItem(label: "Swift Book", value: Dir.swiftBook, editable: false),
+            SettingItem(label: "Packages", value: Dir.packages, editable: false),
+            SettingItem(label: "Sample Code", value: Dir.sampleCode, editable: false),
         ]
 
         result += Box.topLeft + String(repeating: Box.horizontal, count: width - 2) + Box.topRight + "\r\n"

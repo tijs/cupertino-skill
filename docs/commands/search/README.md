@@ -34,13 +34,14 @@ cupertino search "Observable macro"
 Filter results by documentation source.
 
 **Type:** String
-**Values:** `apple-docs`, `swift-evolution`, `swift-org`, `swift-book`, `packages`, `apple-sample-code`, `apple-archive`
+**Values:** `apple-docs`, `swift-evolution`, `swift-org`, `swift-book`, `packages`, `apple-sample-code`, `apple-archive`, `hig`
 
 **Example:**
 ```bash
 cupertino search "concurrency" --source swift-evolution
 cupertino search "View" --source apple-docs
 cupertino search "CALayer" --source apple-archive
+cupertino search "buttons" --source hig
 ```
 
 ### --include-archive

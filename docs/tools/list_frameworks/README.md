@@ -110,4 +110,5 @@ If total documents is 0, run `cupertino save` to build the index.
 ## See Also
 
 - [search_docs](../search_docs/) - Search documentation
+- [search_hig](../search_hig/) - Search Human Interface Guidelines
 - [read_document](../read_document/) - Read document content

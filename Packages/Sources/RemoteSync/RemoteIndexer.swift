@@ -1,4 +1,5 @@
 import Foundation
+import Shared
 
 // MARK: - Indexing Context
 
@@ -248,22 +249,24 @@ public actor RemoteIndexer {
     // MARK: - Helpers
 
     private func phasePath(_ phase: RemoteIndexState.Phase) -> String {
+        typealias Dir = Shared.Constants.Directory
         switch phase {
-        case .docs: return "docs"
-        case .evolution: return "swift-evolution"
-        case .archive: return "archive"
-        case .swiftOrg: return "swift-org"
-        case .packages: return "packages"
+        case .docs: return Dir.docs
+        case .evolution: return Dir.swiftEvolution
+        case .archive: return Dir.archive
+        case .swiftOrg: return Dir.swiftOrg
+        case .packages: return Dir.packages
         }
     }
 
     private func phaseSource(_ phase: RemoteIndexState.Phase) -> String {
+        typealias SP = Shared.Constants.SourcePrefix
         switch phase {
-        case .docs: return "apple-docs"
-        case .evolution: return "swift-evolution"
-        case .archive: return "apple-archive"
-        case .swiftOrg: return "swift-org"
-        case .packages: return "packages"
+        case .docs: return SP.appleDocs
+        case .evolution: return SP.swiftEvolution
+        case .archive: return SP.appleArchive
+        case .swiftOrg: return SP.swiftOrg
+        case .packages: return SP.packages
         }
     }
 

@@ -25,6 +25,7 @@ extension Shared {
             public static let packages = "packages"
             public static let sampleCode = "sample-code"
             public static let archive = "archive"
+            public static let hig = "hig"
         }
 
         // MARK: - File Names
@@ -107,6 +108,11 @@ extension Shared {
             defaultBaseDirectory.appendingPathComponent(Directory.archive)
         }
 
+        /// Default HIG directory: ~/.cupertino/hig
+        public static var defaultHIGDirectory: URL {
+            defaultBaseDirectory.appendingPathComponent(Directory.hig)
+        }
+
         /// Default metadata file: ~/.cupertino/metadata.json
         public static var defaultMetadataFile: URL {
             defaultBaseDirectory.appendingPathComponent(FileName.metadata)
@@ -138,7 +144,7 @@ extension Shared {
             public static let userAgent = "CupertinoCrawler/1.0"
 
             /// Current version
-            public static let version = "0.3.4"
+            public static let version = "0.3.5"
         }
 
         // MARK: - Display Names
@@ -177,6 +183,9 @@ extension Shared {
 
             /// Apple Archive Documentation display name
             public static let archive = "Apple Archive Documentation"
+
+            /// Human Interface Guidelines display name
+            public static let humanInterfaceGuidelines = "Human Interface Guidelines"
         }
 
         // MARK: - GitHub Organizations
@@ -211,6 +220,48 @@ extension Shared {
             public static let subsystem = "com.cupertino.cli"
         }
 
+        // MARK: - Source Prefixes
+
+        /// Source prefixes used for filtering search queries.
+        /// Users can prefix their search with these to filter by source type.
+        /// Example: "swift-evolution actors" searches only Swift Evolution for "actors"
+        public enum SourcePrefix {
+            /// Apple Developer Documentation source prefix
+            public static let appleDocs = "apple-docs"
+
+            /// Swift Book (The Swift Programming Language) source prefix
+            public static let swiftBook = "swift-book"
+
+            /// Swift.org documentation source prefix
+            public static let swiftOrg = "swift-org"
+
+            /// Swift Evolution proposals source prefix
+            public static let swiftEvolution = "swift-evolution"
+
+            /// Swift package documentation source prefix
+            public static let packages = "packages"
+
+            /// Apple sample code source prefix
+            public static let appleSampleCode = "apple-sample-code"
+
+            /// Apple archive documentation source prefix
+            public static let appleArchive = "apple-archive"
+
+            /// Human Interface Guidelines source prefix
+            public static let hig = "hig"
+
+            /// All known source prefixes for query detection
+            public static let allPrefixes: [String] = [
+                appleDocs,
+                swiftBook,
+                swiftOrg,
+                swiftEvolution,
+                packages,
+                appleSampleCode,
+                hig,
+            ]
+        }
+
         // MARK: - URLs
 
         public enum BaseURL {
@@ -225,6 +276,9 @@ extension Shared {
             /// Apple Archive Documentation
             public static let appleArchive = "https://developer.apple.com/library/archive/"
 
+            /// Apple Human Interface Guidelines
+            public static let appleHIG = "https://developer.apple.com/design/human-interface-guidelines/"
+
             /// Apple Sample Code List
             public static let appleSampleCode = "https://developer.apple.com/documentation/samplecode/"
 
@@ -233,10 +287,10 @@ extension Shared {
 
             // MARK: Swift.org
 
-            /// Swift.org Documentation Base
-            public static let swiftOrg = "https://docs.swift.org/"
+            /// Swift.org Documentation Base (www.swift.org for general docs)
+            public static let swiftOrg = "https://www.swift.org/documentation/"
 
-            /// Swift Book Documentation
+            /// Swift Book Documentation (hosted at docs.swift.org)
             public static let swiftBook = "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/"
 
             // MARK: GitHub
@@ -337,6 +391,9 @@ extension Shared {
             /// Swift Evolution proposal resource URI scheme
             public static let swiftEvolutionScheme = "swift-evolution://"
 
+            /// Human Interface Guidelines resource URI scheme
+            public static let higScheme = "hig://"
+
             // MARK: Tool Names
 
             /// Search documentation tool name
@@ -347,6 +404,9 @@ extension Shared {
 
             /// Read document tool name
             public static let toolReadDocument = "read_document"
+
+            /// Search HIG tool name
+            public static let toolSearchHIG = "search_hig"
 
             // MARK: Sample Code Tool Names
 
@@ -404,7 +464,7 @@ extension Shared {
             public static let toolSearchDocsDescription = """
             Search Apple documentation and Swift Evolution proposals by keywords. \
             Returns a ranked list of relevant documents with URIs that can be read using resources/read. \
-            Optional parameters: source (apple-docs, swift-evolution, swift-org, swift-book, apple-archive), \
+            Optional parameters: source (apple-docs, swift-evolution, swift-org, swift-book, apple-archive, hig), \
             framework (e.g. swiftui, foundation), include_archive (bool, includes legacy Apple Archive guides \
             like Core Animation Programming Guide - useful for foundational concepts not in modern docs).
             """
@@ -419,6 +479,14 @@ extension Shared {
             public static let toolReadDocumentDescription = """
             Read a document by URI. Returns the full document content in the requested format. \
             Use URIs from search_docs results. Format parameter: 'json' (default, structured) or 'markdown' (rendered).
+            """
+
+            /// Search HIG tool description
+            public static let toolSearchHIGDescription = """
+            Search Apple Human Interface Guidelines by keywords. \
+            Returns a ranked list of design guidelines with URIs that can be read using resources/read. \
+            Optional parameters: platform (iOS, macOS, watchOS, visionOS, tvOS), \
+            category (foundations, patterns, components, technologies, inputs), limit.
             """
 
             // MARK: Sample Code Tool Descriptions
@@ -467,6 +535,12 @@ extension Shared {
 
             /// JSON Schema parameter: include_archive
             public static let schemaParamIncludeArchive = "include_archive"
+
+            /// JSON Schema parameter: platform (for HIG)
+            public static let schemaParamPlatform = "platform"
+
+            /// JSON Schema parameter: category (for HIG)
+            public static let schemaParamCategory = "category"
 
             /// JSON Schema parameter: limit
             public static let schemaParamLimit = "limit"

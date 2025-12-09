@@ -44,40 +44,46 @@ public actor DocumentationToolProvider: ToolProvider {
                     required: [Shared.Constants.MCP.schemaParamURI]
                 )
             ),
+            Tool(
+                name: Shared.Constants.MCP.toolSearchHIG,
+                description: Shared.Constants.MCP.toolSearchHIGDescription,
+                inputSchema: JSONSchema(
+                    type: Shared.Constants.MCP.schemaTypeObject,
+                    properties: nil,
+                    required: [Shared.Constants.MCP.schemaParamQuery]
+                )
+            ),
         ]
 
         return ListToolsResult(tools: tools)
     }
 
     public func callTool(name: String, arguments: [String: AnyCodable]?) async throws -> CallToolResult {
+        let args = ArgumentExtractor(arguments)
+
         switch name {
         case Shared.Constants.MCP.toolSearchDocs:
-            return try await handleSearchDocs(arguments: arguments)
+            return try await handleSearchDocs(args: args)
         case Shared.Constants.MCP.toolListFrameworks:
             return try await handleListFrameworks()
         case Shared.Constants.MCP.toolReadDocument:
-            return try await handleReadDocument(arguments: arguments)
+            return try await handleReadDocument(args: args)
+        case Shared.Constants.MCP.toolSearchHIG:
+            return try await handleSearchHIG(args: args)
         default:
-            throw DocumentationToolError.unknownTool(name)
+            throw ToolError.unknownTool(name)
         }
     }
 
     // MARK: - Tool Handlers
 
-    private func handleSearchDocs(arguments: [String: AnyCodable]?) async throws -> CallToolResult {
-        guard let query = arguments?[Shared.Constants.MCP.schemaParamQuery]?.value as? String else {
-            throw DocumentationToolError.missingArgument(Shared.Constants.MCP.schemaParamQuery)
-        }
-
-        let source = arguments?[Shared.Constants.MCP.schemaParamSource]?.value as? String
-        let framework = arguments?[Shared.Constants.MCP.schemaParamFramework]?.value as? String
-        let language = arguments?[Shared.Constants.MCP.schemaParamLanguage]?.value as? String
-        let defaultLimit = Shared.Constants.Limit.defaultSearchLimit
-        let requestedLimit = (arguments?[Shared.Constants.MCP.schemaParamLimit]?.value as? Int) ?? defaultLimit
-        let limit = min(requestedLimit, Shared.Constants.Limit.maxSearchLimit)
-
-        // Include archive only if explicitly requested via parameter or source=apple-archive
-        let includeArchive = (arguments?[Shared.Constants.MCP.schemaParamIncludeArchive]?.value as? Bool) ?? false
+    private func handleSearchDocs(args: ArgumentExtractor) async throws -> CallToolResult {
+        let query: String = try args.require(Shared.Constants.MCP.schemaParamQuery)
+        let source = args.optional(Shared.Constants.MCP.schemaParamSource)
+        let framework = args.optional(Shared.Constants.MCP.schemaParamFramework)
+        let language = args.optional(Shared.Constants.MCP.schemaParamLanguage)
+        let limit = args.limit()
+        let includeArchive = args.includeArchive()
 
         // Perform search
         // Archive documentation is excluded by default unless include_archive=true or source=apple-archive
@@ -168,20 +174,15 @@ public actor DocumentationToolProvider: ToolProvider {
         return CallToolResult(content: [content])
     }
 
-    private func handleReadDocument(arguments: [String: AnyCodable]?) async throws -> CallToolResult {
-        guard let uri = arguments?[Shared.Constants.MCP.schemaParamURI]?.value as? String else {
-            throw DocumentationToolError.missingArgument(Shared.Constants.MCP.schemaParamURI)
-        }
-
-        // Parse format parameter (default: json)
-        let formatString = (arguments?[Shared.Constants.MCP.schemaParamFormat]?.value as? String)
-            ?? Shared.Constants.MCP.formatValueJSON
+    private func handleReadDocument(args: ArgumentExtractor) async throws -> CallToolResult {
+        let uri: String = try args.require(Shared.Constants.MCP.schemaParamURI)
+        let formatString = args.format()
         let format: Search.Index.DocumentFormat = formatString == Shared.Constants.MCP.formatValueMarkdown
             ? .markdown : .json
 
         // Get document content from search index
         guard let documentContent = try await searchIndex.getDocumentContent(uri: uri, format: format) else {
-            throw DocumentationToolError.invalidArgument(
+            throw ToolError.invalidArgument(
                 Shared.Constants.MCP.schemaParamURI,
                 "Document not found: \(uri)"
             )
@@ -193,23 +194,75 @@ public actor DocumentationToolProvider: ToolProvider {
 
         return CallToolResult(content: [content])
     }
-}
 
-// MARK: - Tool Errors
+    private func handleSearchHIG(args: ArgumentExtractor) async throws -> CallToolResult {
+        let query: String = try args.require(Shared.Constants.MCP.schemaParamQuery)
+        let platform = args.optional(Shared.Constants.MCP.schemaParamPlatform)
+        let category = args.optional(Shared.Constants.MCP.schemaParamCategory)
+        let limit = args.limit()
 
-enum DocumentationToolError: Error, LocalizedError {
-    case unknownTool(String)
-    case missingArgument(String)
-    case invalidArgument(String, String) // argument name, reason
-
-    var errorDescription: String? {
-        switch self {
-        case .unknownTool(let name):
-            return "Unknown tool: \(name)"
-        case .missingArgument(let arg):
-            return "Missing required argument: \(arg)"
-        case .invalidArgument(let arg, let reason):
-            return "Invalid argument '\(arg)': \(reason)"
+        // Build HIG-specific query with optional platform/category filters
+        var effectiveQuery = query
+        if let platform {
+            effectiveQuery += " \(platform)"
         }
+        if let category {
+            effectiveQuery += " \(category)"
+        }
+
+        // Search HIG content only (source pre-set to "hig")
+        let results = try await searchIndex.search(
+            query: effectiveQuery,
+            source: Shared.Constants.SourcePrefix.hig,
+            framework: nil,
+            language: nil,
+            limit: limit,
+            includeArchive: false
+        )
+
+        // Format results as markdown
+        var markdown = "# HIG Search Results for \"\(query)\"\n\n"
+
+        if let platform {
+            markdown += "_Platform: **\(platform)**_\n\n"
+        }
+        if let category {
+            markdown += "_Category: **\(category)**_\n\n"
+        }
+
+        markdown += "Found **\(results.count)** guideline\(results.count == 1 ? "" : "s"):\n\n"
+
+        if results.isEmpty {
+            markdown += "_No Human Interface Guidelines found matching your query._\n\n"
+            markdown += "**Tips:**\n"
+            markdown += "- Try broader design terms (e.g., 'buttons', 'typography', 'navigation')\n"
+            markdown += "- Specify a platform: iOS, macOS, watchOS, visionOS, tvOS\n"
+            markdown += "- Specify a category: foundations, patterns, components, technologies, inputs\n"
+        } else {
+            for (index, result) in results.enumerated() {
+                markdown += "## \(index + 1). \(result.title)\n\n"
+                markdown += "- **URI:** `\(result.uri)`\n"
+                markdown += "- **Score:** \(String(format: Shared.Constants.MCP.formatScore, result.score))\n\n"
+
+                // Add summary
+                markdown += result.summary
+                markdown += "\n\n"
+
+                // Add separator except for last item
+                if index < results.count - 1 {
+                    markdown += "---\n\n"
+                }
+            }
+
+            markdown += "\n\n"
+            markdown += Shared.Constants.MCP.tipUseResourcesRead
+            markdown += "\n"
+        }
+
+        let content = ContentBlock.text(
+            TextContent(text: markdown)
+        )
+
+        return CallToolResult(content: [content])
     }
 }

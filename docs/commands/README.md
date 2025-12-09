@@ -7,7 +7,7 @@ CLI commands for the Cupertino documentation server.
 | Command | Description |
 |---------|-------------|
 | [setup](setup/) | **Download pre-built databases from GitHub (fastest)** |
-| [fetch](fetch/) | Download documentation from Apple, Swift Evolution, Swift.org, and Apple Archive |
+| [fetch](fetch/) | Download documentation from Apple, Swift Evolution, Swift.org, HIG, and Apple Archive |
 | [save](save/) | Build FTS5 search index from downloaded documentation |
 | [index](index/) | Index sample code for full-text search |
 | [serve](serve/) | Start MCP server for AI agent access |
@@ -32,6 +32,7 @@ cupertino serve
 # Or download documentation manually
 cupertino fetch --type docs
 cupertino fetch --type evolution
+cupertino fetch --type hig
 cupertino fetch --type archive
 
 # Build search index (from local files)
@@ -80,7 +81,8 @@ cupertino serve
 # 1. Download documentation (takes time)
 cupertino fetch --type docs --max-pages 15000
 cupertino fetch --type evolution
-cupertino fetch --type archive  # Legacy programming guides
+cupertino fetch --type hig       # Human Interface Guidelines
+cupertino fetch --type archive   # Legacy programming guides
 
 # 2. Build search index
 cupertino save

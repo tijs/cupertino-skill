@@ -76,6 +76,7 @@ struct DoctorCommand: AsyncParsableCommand {
     private func checkDocumentationDirectories() -> Bool {
         let docsURL = URL(fileURLWithPath: docsDir).expandingTildeInPath
         let evolutionURL = URL(fileURLWithPath: evolutionDir).expandingTildeInPath
+        let higURL = Shared.Constants.defaultHIGDirectory
 
         var hasIssues = false
 
@@ -98,7 +99,15 @@ struct DoctorCommand: AsyncParsableCommand {
         } else {
             Log.output("   ⚠  Swift Evolution: \(evolutionURL.path) (not found)")
             Log.output("     → Run: cupertino fetch --type evolution")
-            hasIssues = true
+        }
+
+        // Check HIG directory
+        if FileManager.default.fileExists(atPath: higURL.path) {
+            let count = countMarkdownFiles(in: higURL)
+            Log.output("   ✓ HIG: \(higURL.path) (\(count) pages)")
+        } else {
+            Log.output("   ⚠  HIG: \(higURL.path) (not found)")
+            Log.output("     → Run: cupertino fetch --type hig")
         }
 
         Log.output("")

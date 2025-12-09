@@ -197,7 +197,7 @@ extension Core {
             let fwPageCount = fwStats?.pageCount ?? 0
 
             let urlString = url.absoluteString
-            let progress = "[\(visited.count)/\(configuration.maxPages)] [\(framework):\(fwPageCount + 1)]"
+            let progress = "[\(visited.count)] [\(framework):\(fwPageCount + 1)]"
             logInfo("📄 \(progress) depth=\(depth) \(urlString)")
 
             // Try JSON API first (better data quality), fall back to HTML if unavailable
@@ -399,7 +399,7 @@ extension Core {
         // MARK: - Logging
 
         private func logInfo(_ message: String) {
-            let memoryMsg = "🧠 \(String(format: "%.1f", getMemoryUsageMB()))MB | \(message)"
+            let memoryMsg = "\(String(format: "%.1f", getMemoryUsageMB()))MB | \(message)"
             Log.info(memoryMsg, category: .crawler)
             logToFile(memoryMsg)
         }
@@ -418,7 +418,7 @@ extension Core {
 
             let messages = [
                 "",
-                "📊 Progress Update [\(visited.count)/\(configuration.maxPages)]:",
+                "📊 Progress Update [\(visited.count)]:",
                 "   Visited: \(visited.count) pages",
                 "   Queue: \(queue.count) pending URLs",
                 "   New: \(stats.newPages) | Updated: \(stats.updatedPages) | Skipped: \(stats.skippedPages)",

@@ -139,9 +139,19 @@ Full-text search across all documentation.
 
 **Parameters:**
 - `query` (required): Search keywords
-- `source` (optional): Filter by source (apple-docs, swift-book, swift-org, swift-evolution, packages)
+- `source` (optional): Filter by source (apple-docs, swift-book, swift-org, swift-evolution, packages, hig, apple-archive)
 - `framework` (optional): Filter by framework name
 - `language` (optional): Filter by language (swift, objc)
+- `limit` (optional): Max results (default: 20, max: 100)
+
+### search_hig
+
+Search Human Interface Guidelines with platform and category filters.
+
+**Parameters:**
+- `query` (required): Search keywords
+- `platform` (optional): Filter by platform (iOS, macOS, watchOS, visionOS, tvOS)
+- `category` (optional): Filter by category (foundations, patterns, components, inputs, technologies)
 - `limit` (optional): Max results (default: 20, max: 100)
 
 ### list_frameworks

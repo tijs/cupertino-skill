@@ -189,6 +189,18 @@ swift-org://<path>
 ```
 Example: `swift-org://swift-org_documentation_articles_value-and-reference-types`
 
+### Human Interface Guidelines
+```
+hig://<category>/<page>
+```
+Example: `hig://components/buttons`
+
+### Apple Archive
+```
+apple-archive://<guide>/<page>
+```
+Example: `apple-archive://TP40014097/about-views`
+
 ## Error Handling
 
 ### Document Not Found

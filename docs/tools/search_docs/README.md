@@ -53,6 +53,7 @@ Filter results to a specific documentation source.
 - `"swift-org"` - Swift.org documentation
 - `"swift-evolution"` - Swift Evolution proposals
 - `"packages"` - Swift Package documentation
+- `"hig"` - Human Interface Guidelines
 - `"apple-archive"` - Apple Archive legacy programming guides
 
 ### framework (optional)
@@ -231,5 +232,6 @@ A type whose mutable state is protected from concurrent access...
 
 ## See Also
 
+- [search_hig](../search_hig/) - Search Human Interface Guidelines
 - [read_document](../read_document/) - Read document content by URI
 - [list_frameworks](../list_frameworks/) - List available frameworks

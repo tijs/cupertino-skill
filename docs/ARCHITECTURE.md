@@ -1,6 +1,6 @@
 # Cupertino Architecture
 
-**Version:** v0.2.7
+**Version:** v0.3.5
 **Last Updated:** 2025-12-03
 **Swift Version:** 6.2
 **Language Mode:** Swift 6 with Strict Concurrency Checking
@@ -23,20 +23,23 @@
 
 Cupertino is a Swift-based Apple documentation crawler and MCP (Model Context Protocol) server. The project uses **ExtremePackaging** architecture to organize code into focused, reusable modules.
 
-### Package Structure (v0.2.7)
+### Package Structure (v0.3.5)
 
-Cupertino uses **ExtremePackaging** architecture with 10 consolidated packages:
+Cupertino uses **ExtremePackaging** architecture with 11 consolidated packages:
 
 ```
 Foundation Layer:
   ├─ MCP                    # Consolidated MCP framework (Protocol + Transport + Server)
   ├─ Logging                # os.log infrastructure
-  └─ Shared                 # Configuration & models
+  └─ Shared                 # Configuration, models & utilities (ToolError, PathResolver, etc.)
 
 Infrastructure Layer:
   ├─ Core                   # Crawler & downloaders
   ├─ Search                 # SQLite FTS5 search for documentation
   └─ SampleIndex            # SQLite FTS5 search for sample code
+
+Service Layer:
+  └─ Services               # Unified search services & formatters (see below)
 
 Application Layer:
   ├─ MCPSupport             # Resource providers
@@ -48,6 +51,45 @@ Executables:
   ├─ TUI                    # Terminal UI (cupertino-tui)
   └─ MockAIAgent            # Testing tool (mock-ai-agent)
 ```
+
+### Services Layer Architecture
+
+The Services module provides a unified service layer for search operations, allowing both CLI commands and MCP tool providers to share the same business logic:
+
+```
+                     ┌─────────────────────┐
+                     │  ServiceContainer   │
+                     │  (Lifecycle Mgmt)   │
+                     └─────────┬───────────┘
+                               │
+       ┌───────────────────────┼───────────────────────┐
+       │                       │                       │
+       ▼                       ▼                       ▼
+┌──────────────┐      ┌──────────────┐      ┌──────────────┐
+│DocsSearchSvc │      │ HIGSearchSvc │      │SampleSearchSvc│
+│ (Search.Index)│      │  (delegates) │      │ (SampleIndex) │
+└──────────────┘      └──────────────┘      └──────────────┘
+       │                       │                       │
+       └───────────────────────┼───────────────────────┘
+                               │
+                               ▼
+                     ┌─────────────────────┐
+                     │     Formatters      │
+                     │ (Text/JSON/Markdown)│
+                     └─────────────────────┘
+```
+
+**Services:**
+- `DocsSearchService` - Wraps Search.Index for documentation searches
+- `HIGSearchService` - Specialized HIG search with platform/category filters
+- `SampleSearchService` - Wraps SampleIndex.Database for sample code
+
+**Formatters:**
+- `MarkdownFormatter` - For MCP tools and CLI `--format markdown`
+- `TextFormatter` - For CLI default output
+- `JSONFormatter` - For CLI `--format json`
+
+See [Sources/Services/README.md](../Packages/Sources/Services/README.md) for detailed usage.
 
 **v0.2 Package Changes:**
 - **Consolidated MCP:** MCPShared + MCPTransport + MCPServer → MCP

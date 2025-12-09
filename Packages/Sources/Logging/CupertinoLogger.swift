@@ -39,6 +39,9 @@ extension Logging {
 
         /// Logger for Apple archive documentation operations
         public static let archive = os.Logger(subsystem: subsystem, category: "archive")
+
+        /// Logger for Human Interface Guidelines operations
+        public static let hig = os.Logger(subsystem: subsystem, category: "hig")
     }
 }
 

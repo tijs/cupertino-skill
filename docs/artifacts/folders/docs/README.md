@@ -90,7 +90,7 @@ docs/storekit/documentation_storekit_product_subscriptionoffer_signature.md
 cupertino save --docs-dir ~/.cupertino/docs
 
 # Use with MCP
-cupertino-mcp serve
+cupertino
 ```
 
 ### Read Directly

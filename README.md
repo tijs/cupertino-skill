@@ -14,7 +14,7 @@ A Swift-based tool to crawl, index, and serve Apple's developer documentation to
 
 Cupertino is a local, structured, AI-ready documentation system for Apple platforms. It:
 
-- **Crawls** Apple Developer documentation, Swift.org, Swift Evolution proposals, Apple Archive legacy guides, and Swift package metadata
+- **Crawls** Apple Developer documentation, Swift.org, Swift Evolution proposals, Human Interface Guidelines, Apple Archive legacy guides, and Swift package metadata
 - **Indexes** everything into a fast, searchable SQLite FTS5 database with BM25 ranking
 - **Serves** documentation to AI agents like Claude via the Model Context Protocol
 - **Provides** offline access to 138,000+ documentation pages across 263 frameworks
@@ -93,6 +93,7 @@ cupertino fetch --type package-docs  # Swift package READMEs
 cupertino fetch --type code          # Sample code from Apple (requires auth)
 cupertino fetch --type samples       # Sample code from GitHub (recommended)
 cupertino fetch --type archive       # Apple Archive programming guides
+cupertino fetch --type hig           # Human Interface Guidelines
 cupertino fetch --type all           # All types in parallel
 
 # Build indexes
@@ -246,6 +247,11 @@ A UIKit view controller that manages a SwiftUI view hierarchy.
   - Deep conceptual knowledge not in modern docs
   - Excluded from search by default (use `--include-archive`)
 
+- **Human Interface Guidelines**
+  - Apple's official design guidelines for all platforms
+  - Covers iOS, macOS, watchOS, visionOS, and tvOS
+  - Design patterns, components, foundations, and best practices
+
 ### 2. Bundled Resources
 
 Cupertino includes pre-indexed catalog data bundled directly into the application:
@@ -282,9 +288,12 @@ These catalogs are indexed during `cupertino save` and enable instant search wit
 - **Resources**: Direct access to documentation pages
   - `apple-docs://{framework}/{page}`
   - `swift-evolution://{proposal-id}`
+  - `hig://{category}/{page}`
 - **Tools**: Search and read capabilities for AI agents
   - **Documentation Tools** (requires `cupertino save`):
     - `search_docs` - Full-text search across all documentation
+    - `search_hig` - Search Human Interface Guidelines
+      - Parameters: `query` (required), `platform` (optional), `category` (optional), `limit` (optional)
     - `list_frameworks` - List available frameworks
     - `read_document` - Read document by URI with format option
       - Parameters: `uri` (required), `format` (optional: `json` or `markdown`, default: `json`)
@@ -515,7 +524,7 @@ For development setup, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Project Status
 
-**Version:** 0.3.4
+**Version:** 0.3.5
 **Status:** 🚧 Active Development
 
 - ✅ All core functionality working
