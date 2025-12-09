@@ -256,6 +256,16 @@ cupertino setup
 
 ## Troubleshooting
 
+### Don't Use Homebrew on Release Machine
+
+On the machine where you run the release process, **do not install cupertino via Homebrew**. Use the locally built binary instead:
+
+```bash
+make build && sudo make install
+```
+
+The `cupertino release` command uses the installed binary's version to determine the release tag. If Homebrew has an old version installed, databases will be uploaded with the wrong version tag.
+
 ### GitHub Actions Build Failed
 
 Check the [Actions tab](https://github.com/mihaelamj/cupertino/actions) for logs.
