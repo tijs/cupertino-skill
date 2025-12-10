@@ -326,6 +326,7 @@ These catalogs are indexed during `cupertino save` and enable instant search wit
 | `cupertino read` | Read full document by URI |
 | `cupertino doctor` | Check server health |
 | `cupertino index` | Index sample code for search |
+| `cupertino cleanup` | Clean up sample code archives |
 
 See [docs/commands/](docs/commands/) for detailed usage and options.
 
@@ -524,7 +525,7 @@ For development setup, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Project Status
 
-**Version:** 0.3.5
+**Version:** 0.4.0
 **Status:** 🚧 Active Development
 
 - ✅ All core functionality working

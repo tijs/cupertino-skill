@@ -20,7 +20,6 @@ CLI commands for the Cupertino documentation server.
 | [read-sample-file](read-sample-file/) | Read a source file from a sample project |
 | [doctor](doctor/) | Check server health and configuration |
 | [cleanup](cleanup/) | Clean up downloaded sample code archives |
-| [release](release/) | Package and upload databases to GitHub Releases (maintainer only) |
 
 ## Quick Reference
 

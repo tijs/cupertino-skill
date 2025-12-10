@@ -1,3 +1,25 @@
+## 0.4.0
+
+### Changed
+- **Release Command Moved** - `cupertino release` removed from CLI (#98)
+  - Users should not have access to release functionality
+  - Maintainers now use `cupertino-rel` separate executable
+- **New ReleaseTool Package** - Maintainer-only release automation
+  - `cupertino-rel bump` - Update version in all files
+  - `cupertino-rel tag` - Create and push git tags
+  - `cupertino-rel databases` - Upload databases to cupertino-docs
+  - `cupertino-rel homebrew` - Update Homebrew formula
+  - `cupertino-rel full` - Complete release workflow
+
+### Documentation
+- Updated `docs/DEPLOYMENT.md` with automated release instructions
+- Added `Packages/Sources/ReleaseTool/README.md`
+
+### Related Issues
+- Closes #98
+
+---
+
 ## 0.3.4
 
 ### Added

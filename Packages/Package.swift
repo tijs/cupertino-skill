@@ -31,6 +31,7 @@ let macOSOnlyProducts: [Product] = [
     .executable(name: "cupertino", targets: ["CLI"]),
     .executable(name: "cupertino-tui", targets: ["TUI"]),
     .executable(name: "mock-ai-agent", targets: ["MockAIAgent"]),
+    .executable(name: "cupertino-rel", targets: ["ReleaseTool"]),
 ]
 #else
 let macOSOnlyProducts: [Product] = []
@@ -216,6 +217,17 @@ let targets: [Target] = {
         ]
     )
 
+    let releaseToolTarget = Target.executableTarget(
+        name: "ReleaseTool",
+        dependencies: [
+            .product(name: "ArgumentParser", package: "swift-argument-parser"),
+        ]
+    )
+    let releaseToolTestsTarget = Target.testTarget(
+        name: "ReleaseToolTests",
+        dependencies: ["ReleaseTool"]
+    )
+
     let testSupportTarget = Target.target(
         name: "TestSupport",
         dependencies: []
@@ -287,6 +299,8 @@ let targets: [Target] = {
         cliTarget,
         tuiTarget,
         mockAIAgentTarget,
+        releaseToolTarget,
+        releaseToolTestsTarget,
         // CLI Command Tests
         serveTestsTarget,
         doctorTestsTarget,
