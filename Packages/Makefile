@@ -17,6 +17,7 @@ PROJECT_DIR := $(MAKEFILE_DIR)
 SWIFT_BUILD_FLAGS = -c release
 PRODUCT_NAME_CLI = cupertino
 PRODUCT_NAME_TUI = cupertino-tui
+PRODUCT_NAME_REL = cupertino-rel
 
 # Detect architecture
 ARCH := $(shell uname -m)
