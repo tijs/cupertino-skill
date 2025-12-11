@@ -1,22 +1,54 @@
-## 0.4.0
+## 0.5.0 (2025-12-11)
 
-### Changed
-- **Release Command Moved** - `cupertino release` removed from CLI (#98)
-  - Users should not have access to release functionality
-  - Maintainers now use `cupertino-rel` separate executable
-- **New ReleaseTool Package** - Maintainer-only release automation
+**Why minor bump?** The `cupertino release` command was removed from the public CLI. Users who had scripts calling `cupertino release` will need to update them. This is a breaking change for maintainer workflows.
+
+### Added
+- **Documentation Database Expanded** - 234,331 pages across 287 frameworks (up from 138k/263)
+  - Kernel: 24,747 docs
+  - Matter: 22,013 docs
+  - Swift: 17,466 docs
+  - Full deep crawl of Apple Developer Documentation
+- **New ReleaseTool Package** - Maintainer-only release automation (#98)
   - `cupertino-rel bump` - Update version in all files
   - `cupertino-rel tag` - Create and push git tags
   - `cupertino-rel databases` - Upload databases to cupertino-docs
   - `cupertino-rel homebrew` - Update Homebrew formula
+  - `cupertino-rel docs-update` - Documentation-only releases
   - `cupertino-rel full` - Complete release workflow
+
+### Changed
+- **Breaking:** `cupertino release` removed from CLI - maintainers now use separate `cupertino-rel` executable
+- README now shows accurate documentation counts
+
+### Fixed
+- Flaky ArchiveGuideCatalog tests (#101)
 
 ### Documentation
 - Updated `docs/DEPLOYMENT.md` with automated release instructions
 - Added `Packages/Sources/ReleaseTool/README.md`
 
 ### Related Issues
-- Closes #98
+- Closes #98, #101
+
+---
+
+## 0.4.0 (2025-12-09)
+
+### Added
+- **HIG Support** - Human Interface Guidelines documentation (#95)
+  - `cupertino fetch --type hig` - Fetch HIG documentation
+  - New HIG source for search results
+
+### Fixed
+- Swift.org indexer now handles JSON files correctly
+
+### Documentation
+- Added video demo
+- Added MIT License
+- Added Homebrew tap info to README
+
+### Related Issues
+- Closes #95
 
 ---
 

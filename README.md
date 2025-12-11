@@ -17,7 +17,7 @@ Cupertino is a local, structured, AI-ready documentation system for Apple platfo
 - **Crawls** Apple Developer documentation, Swift.org, Swift Evolution proposals, Human Interface Guidelines, Apple Archive legacy guides, and Swift package metadata
 - **Indexes** everything into a fast, searchable SQLite FTS5 database with BM25 ranking
 - **Serves** documentation to AI agents like Claude via the Model Context Protocol
-- **Provides** offline access to 138,000+ documentation pages across 263 frameworks
+- **Provides** offline access to 234,331+ documentation pages across 287 frameworks
 
 ### Why Build This?
 
@@ -525,7 +525,7 @@ For development setup, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Project Status
 
-**Version:** 0.4.0
+**Version:** 0.5.0
 **Status:** 🚧 Active Development
 
 - ✅ All core functionality working
