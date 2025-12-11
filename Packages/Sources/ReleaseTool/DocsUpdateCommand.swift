@@ -59,20 +59,18 @@ struct DocsUpdateCommand: AsyncParsableCommand {
 
         // Step 2: Query database for counts
         Console.step(2, "Query database statistics")
-        let (docCount, frameworkCount) = try await getDocumentStats(dryRun: dryRun)
-        if !dryRun {
-            Console.substep("✓ Documents: \(formatNumber(docCount))")
-            Console.substep("✓ Frameworks: \(frameworkCount)")
-        }
+        let (docCount, frameworkCount) = try await getDocumentStats()
+        Console.substep("✓ Documents: \(formatNumber(docCount))")
+        Console.substep("✓ Frameworks: \(frameworkCount)")
 
         // Step 3: Update README.md
         Console.step(3, "Update README.md with new counts")
+        let statsMsg = "\(formatNumber(docCount))+ documentation pages across \(frameworkCount) frameworks"
         if dryRun {
-            Console.substep("Would update: 'X documentation pages across Y frameworks'")
+            Console.substep("Would update to: '\(statsMsg)'")
         } else {
             try updateReadmeStats(at: readmePath, documents: docCount, frameworks: frameworkCount)
-            let msg = "\(formatNumber(docCount))+ documentation pages across \(frameworkCount) frameworks"
-            Console.substep("✓ Updated to '\(msg)'")
+            Console.substep("✓ Updated to '\(statsMsg)'")
         }
 
         // Step 4: Bump minor version
@@ -145,12 +143,8 @@ struct DocsUpdateCommand: AsyncParsableCommand {
         return version
     }
 
-    private func getDocumentStats(dryRun: Bool) async throws -> (documents: Int, frameworks: Int) {
-        if dryRun {
-            Console.substep("Would query: cupertino list-frameworks")
-            return (0, 0)
-        }
-
+    private func getDocumentStats() async throws -> (documents: Int, frameworks: Int) {
+        // Always query - we need the counts even in dry-run to show what would be written
         // Query using cupertino list-frameworks and parse output
         let output = try Shell.run("cupertino list-frameworks 2>/dev/null || echo 'error'")
 
@@ -159,37 +153,19 @@ struct DocsUpdateCommand: AsyncParsableCommand {
         }
 
         // Parse output like:
-        // Total: 263 frameworks, 138000 documents
-        // or parse individual lines and sum
+        // Available Frameworks (284 total, 200725 documents):
 
         var totalDocs = 0
         var frameworkCount = 0
 
-        let lines = output.split(separator: "\n")
-        for line in lines {
-            let lineStr = String(line)
-
-            // Look for "Total: X frameworks, Y documents"
-            if lineStr.contains("Total:") {
-                let pattern = #"(\d+)\s+frameworks.*?(\d+)\s+documents"#
-                if let regex = try? NSRegularExpression(pattern: pattern),
-                   let match = regex.firstMatch(in: lineStr, range: NSRange(lineStr.startIndex..., in: lineStr)) {
-                    if let fwRange = Range(match.range(at: 1), in: lineStr),
-                       let docRange = Range(match.range(at: 2), in: lineStr) {
-                        frameworkCount = Int(lineStr[fwRange]) ?? 0
-                        totalDocs = Int(lineStr[docRange]) ?? 0
-                    }
-                }
-                break
-            }
-
-            // Alternative: parse "framework: N documents" lines
-            let docPattern = #":\s*(\d+)\s+documents?"#
-            if let regex = try? NSRegularExpression(pattern: docPattern),
-               let match = regex.firstMatch(in: lineStr, range: NSRange(lineStr.startIndex..., in: lineStr)),
-               let countRange = Range(match.range(at: 1), in: lineStr) {
-                totalDocs += Int(lineStr[countRange]) ?? 0
-                frameworkCount += 1
+        // Look for "Available Frameworks (X total, Y documents):"
+        let pattern = #"\((\d+)\s+total,\s+(\d+)\s+documents\)"#
+        if let regex = try? NSRegularExpression(pattern: pattern),
+           let match = regex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)) {
+            if let fwRange = Range(match.range(at: 1), in: output),
+               let docRange = Range(match.range(at: 2), in: output) {
+                frameworkCount = Int(output[fwRange]) ?? 0
+                totalDocs = Int(output[docRange]) ?? 0
             }
         }
 
