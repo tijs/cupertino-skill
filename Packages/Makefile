@@ -120,11 +120,13 @@ install:
 	$(INSTALL) -m 755 $(PROJECT_DIR)/$(BUILD_DIR)/release/$(PRODUCT_NAME_TUI) $(BINDIR)/$(PRODUCT_NAME_TUI)
 	@if [ -f "$(PROJECT_DIR)/$(BUILD_DIR)/release/$(PRODUCT_NAME_REL)" ]; then \
 		$(INSTALL) -m 755 $(PROJECT_DIR)/$(BUILD_DIR)/release/$(PRODUCT_NAME_REL) $(BINDIR)/$(PRODUCT_NAME_REL); \
-		echo "  Installed: $(BINDIR)/$(PRODUCT_NAME_REL)"; \
 	fi
 	@echo "$(GREEN)✓ Installation complete$(RESET)"
 	@echo "  Installed: $(BINDIR)/$(PRODUCT_NAME_CLI)"
 	@echo "  Installed: $(BINDIR)/$(PRODUCT_NAME_TUI)"
+	@if [ -f "$(BINDIR)/$(PRODUCT_NAME_REL)" ]; then \
+		echo "  Installed: $(BINDIR)/$(PRODUCT_NAME_REL)"; \
+	fi
 	@echo ""
 	@echo "$(YELLOW)Development workflow: Run 'make update' after code changes to rebuild and reinstall.$(RESET)"
 	@echo ""
