@@ -221,6 +221,7 @@ let targets: [Target] = {
         name: "ReleaseTool",
         dependencies: [
             .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            "Shared",
         ]
     )
     let releaseToolTestsTarget = Target.testTarget(

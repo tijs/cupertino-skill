@@ -7,6 +7,13 @@ import Shared
 struct PackageCuratorApp {
     @MainActor
     static func main() async throws {
+        // Handle --version flag
+        let args = CommandLine.arguments
+        if args.contains("--version") || args.contains("-v") {
+            print(Constants.version)
+            return
+        }
+
         // Load packages
         let packages = await SwiftPackagesCatalog.allPackages
 

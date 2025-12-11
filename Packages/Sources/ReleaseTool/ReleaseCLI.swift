@@ -1,5 +1,6 @@
 import ArgumentParser
 import Foundation
+import Shared
 
 // MARK: - Release CLI
 
@@ -19,7 +20,7 @@ struct ReleaseCLI: AsyncParsableCommand {
 
         Requires GITHUB_TOKEN environment variable with repo scope.
         """,
-        version: "1.0.0",
+        version: Constants.version,
         subcommands: [
             BumpCommand.self,
             TagCommand.self,
