@@ -96,6 +96,11 @@ build-release:
 	@echo "$(BOLD)$(GREEN)Building Cupertino (release)...$(RESET)"
 	$(SWIFT) build $(SWIFT_BUILD_FLAGS) --product $(PRODUCT_NAME_CLI)
 	$(SWIFT) build $(SWIFT_BUILD_FLAGS) --product $(PRODUCT_NAME_TUI)
+	@if [ -n "$$CUPERTINO_DOCS_TOKEN" ]; then \
+		echo "$(BOLD)$(GREEN)Building cupertino-rel (maintainer detected)...$(RESET)"; \
+		$(SWIFT) build $(SWIFT_BUILD_FLAGS) --product $(PRODUCT_NAME_REL); \
+		echo "  REL: $(BUILD_DIR)/release/$(PRODUCT_NAME_REL)"; \
+	fi
 	@echo "$(GREEN)✓ Build complete$(RESET)"
 	@echo "  CLI: $(BUILD_DIR)/release/$(PRODUCT_NAME_CLI)"
 	@echo "  TUI: $(BUILD_DIR)/release/$(PRODUCT_NAME_TUI)"
@@ -111,6 +116,10 @@ install:
 	@mkdir -p $(BINDIR)
 	$(INSTALL) -m 755 $(PROJECT_DIR)/$(BUILD_DIR)/release/$(PRODUCT_NAME_CLI) $(BINDIR)/$(PRODUCT_NAME_CLI)
 	$(INSTALL) -m 755 $(PROJECT_DIR)/$(BUILD_DIR)/release/$(PRODUCT_NAME_TUI) $(BINDIR)/$(PRODUCT_NAME_TUI)
+	@if [ -f "$(PROJECT_DIR)/$(BUILD_DIR)/release/$(PRODUCT_NAME_REL)" ]; then \
+		$(INSTALL) -m 755 $(PROJECT_DIR)/$(BUILD_DIR)/release/$(PRODUCT_NAME_REL) $(BINDIR)/$(PRODUCT_NAME_REL); \
+		echo "  Installed: $(BINDIR)/$(PRODUCT_NAME_REL)"; \
+	fi
 	@echo "$(GREEN)✓ Installation complete$(RESET)"
 	@echo "  Installed: $(BINDIR)/$(PRODUCT_NAME_CLI)"
 	@echo "  Installed: $(BINDIR)/$(PRODUCT_NAME_TUI)"
@@ -132,6 +141,10 @@ install-symlinks:
 	@mkdir -p $(BINDIR)
 	@ln -sf "$(PROJECT_DIR)/$(BUILD_DIR)/release/$(PRODUCT_NAME_CLI)" $(BINDIR)/$(PRODUCT_NAME_CLI)
 	@ln -sf "$(PROJECT_DIR)/$(BUILD_DIR)/release/$(PRODUCT_NAME_TUI)" $(BINDIR)/$(PRODUCT_NAME_TUI)
+	@if [ -f "$(PROJECT_DIR)/$(BUILD_DIR)/release/$(PRODUCT_NAME_REL)" ]; then \
+		ln -sf "$(PROJECT_DIR)/$(BUILD_DIR)/release/$(PRODUCT_NAME_REL)" $(BINDIR)/$(PRODUCT_NAME_REL); \
+		echo "  Symlinked: $(BINDIR)/$(PRODUCT_NAME_REL) -> $(PROJECT_DIR)/$(BUILD_DIR)/release/$(PRODUCT_NAME_REL)"; \
+	fi
 	@echo "$(GREEN)✓ Installation complete (symlinks)$(RESET)"
 	@echo "  Symlinked: $(BINDIR)/$(PRODUCT_NAME_CLI) -> $(PROJECT_DIR)/$(BUILD_DIR)/release/$(PRODUCT_NAME_CLI)"
 	@echo "  Symlinked: $(BINDIR)/$(PRODUCT_NAME_TUI) -> $(PROJECT_DIR)/$(BUILD_DIR)/release/$(PRODUCT_NAME_TUI)"
