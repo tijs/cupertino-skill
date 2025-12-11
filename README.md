@@ -130,7 +130,7 @@ cupertino serve
 ### Manual Setup (Advanced)
 
 ```bash
-# Download Apple documentation (~20-24 hours for 13,000+ pages)
+# Download Apple documentation (~20-24 hours for 234,000+ pages)
 # Takes time due to 0.5s default delay between requests to respect Apple's servers
 cupertino fetch --type docs --max-pages 15000
 
@@ -152,7 +152,8 @@ cupertino save
 {
   "mcpServers": {
     "cupertino": {
-      "command": "/opt/homebrew/bin/cupertino"
+      "command": "/usr/local/bin/cupertino",
+      "args": ["serve"]
     }
   }
 }
@@ -205,21 +206,21 @@ A UIKit view controller that manages a SwiftUI view hierarchy.
 **Framework Statistics:**
 | Framework | Documents |
 |-----------|----------:|
-| Accelerate | 14,193 |
-| AppKit | 12,644 |
-| UIKit | 10,038 |
-| Swift | 9,893 |
-| SwiftUI | 9,741 |
-| SIMD | 6,453 |
-| Foundation | 6,068 |
+| Kernel | 24,747 |
+| Matter | 22,013 |
+| Swift | 17,466 |
+| AppKit | 14,066 |
+| Foundation | 10,988 |
+| Accelerate | 9,859 |
+| UIKit | 9,613 |
 | ... | ... |
-| **263 Frameworks** | **138,414** |
+| **287 Frameworks** | **234,331** |
 
 ## Core Features
 
 ### 1. Multi-Source Documentation Fetching
 
-- **Apple Developer Documentation** (13,000+ pages)
+- **Apple Developer Documentation** (234,000+ pages)
   - JavaScript-aware rendering via WKWebView
   - HTML to Markdown conversion
   - Smart change detection
@@ -280,7 +281,7 @@ These catalogs are indexed during `cupertino save` and enable instant search wit
   - Framework filtering
   - Snippet generation
   - Sub-100ms query performance
-- **Size**: ~1.1GB index for full documentation (138,000+ documents across 263 frameworks)
+- **Size**: ~1.9GB index for full documentation (234,000+ documents across 287 frameworks)
 - **Storage**: Database must be on local filesystem - SQLite does not work reliably on network drives (NFS/SMB)
 
 ### 4. Model Context Protocol Server
@@ -439,18 +440,20 @@ log stream --predicate 'subsystem == "com.cupertino"'
 | Operation | Time | Size |
 |-----------|------|------|
 | Build CLI | 10-15s | 4.3MB |
-| Crawl 21,000+ pages | 20-24 hours | 2-3GB |
+| Crawl 234,000+ pages | 32-48 hours | 2-3GB |
 | Swift Evolution | 2-5 min | 429 proposals |
 | Swift.org docs | 5-10 min | 501 pages |
 | Build search index | 2-5 min | ~160MB |
 | Search query | <100ms | - |
 
-### Why Crawling Takes 20+ Hours
+### Why Crawling Takes 30+ Hours
 
 The crawler respects Apple's servers with a **0.5 second default delay between each request** (configurable):
-- 13,000 pages × 0.5s = 6,500 seconds (~1.8 hours minimum)
+- 234,000 pages × 0.5s = 117,000 seconds (~32 hours minimum)
 - Plus page rendering, parsing, and saving time
-- **Total: ~20-24 hours for initial full crawl**
+- **Total: ~32-48 hours for initial full crawl**
+
+Use `cupertino setup` to download pre-built databases instead (~30 seconds).
 
 This is a **one-time operation**. Incremental updates use change detection to skip unchanged pages and complete much faster.
 

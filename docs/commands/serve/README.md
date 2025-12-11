@@ -67,13 +67,12 @@ The server will use default database paths:
 {
   "mcpServers": {
     "cupertino": {
-      "command": "/usr/local/bin/cupertino"
+      "command": "/usr/local/bin/cupertino",
+      "args": ["serve"]
     }
   }
 }
 ```
-
-No args needed - the binary defaults to `serve`!
 
 ## Server Output
 

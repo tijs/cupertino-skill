@@ -205,7 +205,8 @@ echo ""
 echo '     {
        "mcpServers": {
          "cupertino": {
-           "command": "/usr/local/bin/cupertino"
+           "command": "/usr/local/bin/cupertino",
+           "args": ["serve"]
          }
        }
      }'
