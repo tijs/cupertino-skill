@@ -1,7 +1,7 @@
 # Cupertino Deployment Guide
 
 **Version:** 0.4.0
-**Last Updated:** 2025-12-09
+**Last Updated:** 2025-12-10
 
 This guide covers the complete release process for Cupertino.
 
@@ -9,14 +9,92 @@ This guide covers the complete release process for Cupertino.
 
 ## Table of Contents
 
-1. [Quick Release Workflow](#quick-release-workflow)
-2. [Detailed Steps](#detailed-steps)
+1. [Automated Release (Recommended)](#automated-release-recommended)
+2. [Manual Release Workflow](#manual-release-workflow)
 3. [Installation Methods](#installation-methods)
 4. [Troubleshooting](#troubleshooting)
 
 ---
 
-## Quick Release Workflow
+## Automated Release (Recommended)
+
+Use `cupertino-rel` for automated releases:
+
+```bash
+# Build the release tool
+cd Packages
+swift build --product cupertino-rel
+
+# Full release (bumps version, tags, waits for CI, uploads databases, updates Homebrew)
+.build/debug/cupertino-rel 0.5.0
+
+# Or use bump types
+.build/debug/cupertino-rel patch  # 0.4.0 → 0.4.1
+.build/debug/cupertino-rel minor  # 0.4.0 → 0.5.0
+.build/debug/cupertino-rel major  # 0.4.0 → 1.0.0
+```
+
+### Subcommands
+
+Run individual steps if needed:
+
+```bash
+# Preview version changes
+cupertino-rel bump 0.5.0 --dry-run
+
+# Bump version in all files
+cupertino-rel bump 0.5.0
+
+# Create and push git tag
+cupertino-rel tag --push
+
+# Upload databases to cupertino-docs
+export GITHUB_TOKEN="your-cupertino-docs-token"
+cupertino-rel databases
+
+# Update Homebrew formula
+cupertino-rel homebrew --version 0.5.0
+```
+
+### Full Release Output
+
+```
+🚀 Cupertino Release Workflow
+   Current: 0.4.0 → New: 0.5.0
+
+[1] Bump version in all files
+    ✓ Updated Constants.swift
+    ✓ Updated README.md
+    ✓ Updated CHANGELOG.md
+    ✓ Updated DEPLOYMENT.md
+
+[2] Edit CHANGELOG.md
+    Please edit CHANGELOG.md to add release notes.
+    Press Enter when done...
+
+[3] Create git tag and push
+    ✓ Changes committed
+    ✓ Tag v0.5.0 created
+    ✓ Pushed to origin
+
+[4] Wait for GitHub Actions build
+    Waiting for GitHub Actions to build v0.5.0...
+    ✓ Build complete!
+
+[5] Upload databases to cupertino-docs
+    ✓ Databases uploaded
+
+[6] Update Homebrew formula
+    ✓ Formula updated
+
+✅ Release 0.5.0 complete!
+```
+
+---
+
+## Manual Release Workflow
+
+If you prefer manual control or need to debug:
 
 > **⚠️ ORDER MATTERS:** You MUST commit the version bump BEFORE creating the tag.
 > The tag must point to a commit that already has the correct version in Constants.swift.
@@ -44,20 +122,15 @@ make build && sudo make install
 
 # 6. Upload databases to cupertino-docs
 export GITHUB_TOKEN="your-cupertino-docs-token"
-cupertino release
+cupertino-rel databases
 
 # 7. Update Homebrew tap
-cd /tmp && rm -rf homebrew-tap
-git clone https://github.com/mihaelamj/homebrew-tap.git
-cd homebrew-tap
-# Edit Formula/cupertino.rb with new version, URL, and SHA256
-git add -A && git commit -m "chore: bump cupertino to X.Y.Z"
-git push
+cupertino-rel homebrew --version X.Y.Z
 ```
 
 ---
 
-## Detailed Steps
+## Detailed Manual Steps
 
 ### Step 1: Update Version
 
@@ -103,106 +176,20 @@ This triggers GitHub Actions which:
 - Signs and notarizes the binary
 - Creates release with `cupertino-vX.Y.Z-macos-universal.tar.gz`
 
-### Step 5: Create GitHub Release
-
-Go to [GitHub Releases](https://github.com/mihaelamj/cupertino/releases) and create a release:
-
-**Title:**
-```
-vX.Y.Z - Brief Feature Summary
-```
-
-**Description:**
-```markdown
-## What's New
-
-### Feature Name
-- Description of feature
-- Another point
-
-### Fixes
-- Fix description
-
-## Issues Closed
-#issue1, #issue2
-```
-
-### Step 6: Build and Install Locally
-
-```bash
-make build
-sudo make install
-cupertino --version  # Verify
-```
-
-### Step 7: Upload Databases
-
-Upload pre-built databases to `mihaelamj/cupertino-docs`:
+### Step 5: Upload Databases
 
 ```bash
 export GITHUB_TOKEN="your-cupertino-docs-token"
-cupertino release
+cupertino-rel databases
 ```
 
-This:
-- Packages `~/.cupertino/search.db` and `samples.db`
-- Creates release tag `vX.Y.Z` in cupertino-docs
-- Uploads zip with SHA256 checksum
-
-### Step 8: Update Homebrew Tap
-
-Get the SHA256 of the CLI binary:
+### Step 6: Update Homebrew
 
 ```bash
-curl -sL https://github.com/mihaelamj/cupertino/releases/download/vX.Y.Z/cupertino-vX.Y.Z-macos-universal.tar.gz.sha256
+cupertino-rel homebrew --version X.Y.Z
 ```
 
-Clone and update the tap:
-
-```bash
-cd /tmp && rm -rf homebrew-tap
-git clone https://github.com/mihaelamj/homebrew-tap.git
-cd homebrew-tap
-```
-
-Edit `Formula/cupertino.rb`:
-
-```ruby
-class Cupertino < Formula
-  desc "Apple Documentation MCP Server - Search Apple docs, Swift Evolution, and sample code"
-  homepage "https://github.com/mihaelamj/cupertino"
-  url "https://github.com/mihaelamj/cupertino/releases/download/vX.Y.Z/cupertino-vX.Y.Z-macos-universal.tar.gz"
-  sha256 "NEW_SHA256_HERE"
-  version "X.Y.Z"
-  license "MIT"
-
-  depends_on :macos
-  depends_on macos: :sequoia
-
-  def install
-    bin.install "cupertino"
-    (bin/"Cupertino_Resources.bundle").install Dir["Cupertino_Resources.bundle/*"]
-  end
-
-  def post_install
-    ohai "Run 'cupertino setup' to download documentation databases"
-  end
-
-  test do
-    assert_match "X.Y.Z", shell_output("#{bin}/cupertino --version")
-  end
-end
-```
-
-Commit and push:
-
-```bash
-git add Formula/cupertino.rb
-git commit -m "chore: bump cupertino to X.Y.Z"
-git push
-```
-
-### Step 9: Verify
+### Step 7: Verify
 
 Test installation on a fresh machine:
 
@@ -264,13 +251,13 @@ On the machine where you run the release process, **do not install cupertino via
 make build && sudo make install
 ```
 
-The `cupertino release` command uses the installed binary's version to determine the release tag. If Homebrew has an old version installed, databases will be uploaded with the wrong version tag.
+The `cupertino-rel databases` command uses the version from `Constants.swift` to determine the release tag. If Homebrew has an old version installed, databases will be uploaded with the wrong version tag.
 
 ### GitHub Actions Build Failed
 
 Check the [Actions tab](https://github.com/mihaelamj/cupertino/actions) for logs.
 
-### cupertino release: Not Found
+### databases: Not Found
 
 Wrong token. Use the token for `cupertino-docs` repo, not `cupertino`:
 
@@ -297,6 +284,5 @@ Ensure all three match:
 
 ## See Also
 
-- [DEVELOPMENT.md](../DEVELOPMENT.md) - Development workflow
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Technical architecture
 - [README.md](../README.md) - Project overview

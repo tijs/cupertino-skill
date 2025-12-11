@@ -1,15 +1,12 @@
 import ArgumentParser
 import Foundation
-import Logging
-import Shared
 
-// MARK: - Release Command
+// MARK: - Database Release Command
 
-@available(macOS 10.15, macCatalyst 13, iOS 13, tvOS 13, watchOS 6, *)
-struct ReleaseCommand: AsyncParsableCommand {
+struct DatabaseReleaseCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "release",
-        abstract: "Package and upload databases to GitHub Releases"
+        commandName: "databases",
+        abstract: "Package and upload databases to GitHub Releases (cupertino-docs)"
     )
 
     @Option(name: .long, help: "Base directory containing databases")
@@ -21,117 +18,136 @@ struct ReleaseCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Create release without uploading (dry run)")
     var dryRun: Bool = false
 
+    @Option(name: .long, help: "Path to repository root")
+    var repoRoot: String?
+
     // MARK: - Constants
 
     private static let searchDBFilename = "search.db"
     private static let samplesDBFilename = "samples.db"
 
-    private static var version: String {
-        Shared.Constants.App.version
-    }
-
-    private static var releaseTag: String {
-        "v\(version)"
-    }
-
-    private static var zipFilename: String {
-        "cupertino-databases-\(releaseTag).zip"
-    }
-
     // MARK: - Run
 
     mutating func run() async throws {
-        Logging.ConsoleLogger.info("📦 Cupertino Release \(Self.releaseTag)\n")
+        let root = try findRepoRoot()
+        let version = try readCurrentVersion(from: root)
+
+        Console.info("📦 Database Release \(version.tag)\n")
 
         let baseURL = baseDir.map { URL(fileURLWithPath: $0).expandingTildeInPath }
-            ?? Shared.Constants.defaultBaseDirectory
+            ?? defaultBaseDirectory
 
         let searchDBURL = baseURL.appendingPathComponent(Self.searchDBFilename)
         let samplesDBURL = baseURL.appendingPathComponent(Self.samplesDBFilename)
 
         // Verify databases exist
         guard FileManager.default.fileExists(atPath: searchDBURL.path) else {
-            throw ReleaseError.missingDatabase(Self.searchDBFilename, baseURL.path)
+            throw DatabaseReleaseError.missingDatabase(Self.searchDBFilename, baseURL.path)
         }
         guard FileManager.default.fileExists(atPath: samplesDBURL.path) else {
-            throw ReleaseError.missingDatabase(Self.samplesDBFilename, baseURL.path)
+            throw DatabaseReleaseError.missingDatabase(Self.samplesDBFilename, baseURL.path)
         }
 
         // Get database sizes
         let searchSize = try fileSize(at: searchDBURL)
         let samplesSize = try fileSize(at: samplesDBURL)
-        Logging.ConsoleLogger.info("📊 Database sizes:")
-        Logging.ConsoleLogger.info("   search.db:  \(formatBytes(searchSize))")
-        Logging.ConsoleLogger.info("   samples.db: \(formatBytes(samplesSize))")
+        Console.info("📊 Database sizes:")
+        Console.substep("search.db:  \(formatBytes(searchSize))")
+        Console.substep("samples.db: \(formatBytes(samplesSize))")
 
         // Create zip
-        let zipURL = baseURL.appendingPathComponent(Self.zipFilename)
-        Logging.ConsoleLogger.info("\n📁 Creating \(Self.zipFilename)...")
+        let zipFilename = "cupertino-databases-\(version.tag).zip"
+        let zipURL = baseURL.appendingPathComponent(zipFilename)
+        Console.info("\n📁 Creating \(zipFilename)...")
 
-        try createZip(
-            containing: [searchDBURL, samplesDBURL],
-            at: zipURL
-        )
+        try createZip(containing: [searchDBURL, samplesDBURL], at: zipURL)
 
         let zipSize = try fileSize(at: zipURL)
-        Logging.ConsoleLogger.info("   ✓ Created (\(formatBytes(zipSize)))")
+        Console.substep("✓ Created (\(formatBytes(zipSize)))")
 
         // Calculate SHA256
-        Logging.ConsoleLogger.info("\n🔐 Calculating SHA256...")
+        Console.info("\n🔐 Calculating SHA256...")
         let sha256 = try calculateSHA256(of: zipURL)
-        Logging.ConsoleLogger.info("   \(sha256)")
+        Console.substep(sha256)
 
         if dryRun {
-            Logging.ConsoleLogger.info("\n🏃 Dry run - skipping upload")
-            Logging.ConsoleLogger.info("   Zip file: \(zipURL.path)")
+            Console.info("\n🏃 Dry run - skipping upload")
+            Console.substep("Zip file: \(zipURL.path)")
             return
         }
 
         // Check for GitHub token
         guard let token = ProcessInfo.processInfo.environment["GITHUB_TOKEN"] else {
-            throw ReleaseError.missingToken
+            throw DatabaseReleaseError.missingToken
         }
 
         // Check if release exists
-        Logging.ConsoleLogger.info("\n🔍 Checking for existing release...")
-        let releaseExists = try await checkReleaseExists(repo: repo, tag: Self.releaseTag, token: token)
+        Console.info("\n🔍 Checking for existing release...")
+        let releaseExists = try await checkReleaseExists(repo: repo, tag: version.tag, token: token)
 
         if releaseExists {
-            Logging.ConsoleLogger.info("   Release \(Self.releaseTag) exists, updating...")
-            try await deleteRelease(repo: repo, tag: Self.releaseTag, token: token)
+            Console.substep("Release \(version.tag) exists, updating...")
+            try await deleteRelease(repo: repo, tag: version.tag, token: token)
         }
 
         // Create release
-        Logging.ConsoleLogger.info("\n🚀 Creating release \(Self.releaseTag)...")
+        Console.info("\n🚀 Creating release \(version.tag)...")
         let uploadURL = try await createRelease(
             repo: repo,
-            tag: Self.releaseTag,
+            tag: version.tag,
             token: token,
-            sha256: sha256
+            sha256: sha256,
+            zipFilename: zipFilename
         )
-        Logging.ConsoleLogger.info("   ✓ Release created")
+        Console.substep("✓ Release created")
 
         // Upload asset
-        Logging.ConsoleLogger.info("\n⬆️  Uploading \(Self.zipFilename)...")
+        Console.info("\n⬆️  Uploading \(zipFilename)...")
         try await uploadAsset(
             uploadURL: uploadURL,
             file: zipURL,
-            filename: Self.zipFilename,
+            filename: zipFilename,
             token: token
         )
-        Logging.ConsoleLogger.info("   ✓ Upload complete")
+        Console.substep("✓ Upload complete")
 
         // Cleanup
         try? FileManager.default.removeItem(at: zipURL)
 
-        Logging.ConsoleLogger.info("\n✅ Release \(Self.releaseTag) published!")
-        Logging.ConsoleLogger.info("   https://github.com/\(repo)/releases/tag/\(Self.releaseTag)")
+        Console.success("Release \(version.tag) published!")
+        Console.info("   https://github.com/\(repo)/releases/tag/\(version.tag)")
+    }
+
+    // MARK: - Helpers
+
+    private var defaultBaseDirectory: URL {
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".cupertino")
+    }
+
+    private func findRepoRoot() throws -> URL {
+        if let root = repoRoot {
+            return URL(fileURLWithPath: root)
+        }
+        let output = try Shell.run("git rev-parse --show-toplevel")
+        return URL(fileURLWithPath: output)
+    }
+
+    private func readCurrentVersion(from root: URL) throws -> Version {
+        let constantsPath = root.appendingPathComponent("Packages/Sources/Shared/Constants.swift")
+        let content = try String(contentsOf: constantsPath, encoding: .utf8)
+        let pattern = #"public\s+static\s+let\s+version\s*=\s*"(\d+\.\d+\.\d+)""#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
+              let versionRange = Range(match.range(at: 1), in: content),
+              let version = Version(String(content[versionRange])) else {
+            throw DatabaseReleaseError.versionNotFound
+        }
+        return version
     }
 
     // MARK: - Zip
 
     private func createZip(containing files: [URL], at destination: URL) throws {
-        // Remove existing zip
         if FileManager.default.fileExists(atPath: destination.path) {
             try FileManager.default.removeItem(at: destination)
         }
@@ -147,7 +163,7 @@ struct ReleaseCommand: AsyncParsableCommand {
         process.waitUntilExit()
 
         guard process.terminationStatus == 0 else {
-            throw ReleaseError.zipFailed
+            throw DatabaseReleaseError.zipFailed
         }
     }
 
@@ -167,10 +183,25 @@ struct ReleaseCommand: AsyncParsableCommand {
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         guard let output = String(data: data, encoding: .utf8),
               let hash = output.split(separator: " ").first else {
-            throw ReleaseError.sha256Failed
+            throw DatabaseReleaseError.sha256Failed
         }
 
         return String(hash)
+    }
+
+    // MARK: - File Helpers
+
+    private func fileSize(at url: URL) throws -> Int64 {
+        let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
+        return attrs[.size] as? Int64 ?? 0
+    }
+
+    private func formatBytes(_ bytes: Int64) -> String {
+        let megabytes = Double(bytes) / 1000000
+        if megabytes >= 1000 {
+            return String(format: "%.1f GB", megabytes / 1000)
+        }
+        return String(format: "%.1f MB", megabytes)
     }
 
     // MARK: - GitHub API
@@ -198,7 +229,7 @@ struct ReleaseCommand: AsyncParsableCommand {
         let (data, _) = try await URLSession.shared.data(for: getRequest)
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let releaseId = json["id"] as? Int else {
-            throw ReleaseError.apiError("Failed to get release ID")
+            throw DatabaseReleaseError.apiError("Failed to get release ID")
         }
 
         // Delete release
@@ -210,7 +241,7 @@ struct ReleaseCommand: AsyncParsableCommand {
         let (_, response) = try await URLSession.shared.data(for: deleteRequest)
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 204 else {
-            throw ReleaseError.apiError("Failed to delete release")
+            throw DatabaseReleaseError.apiError("Failed to delete release")
         }
 
         // Delete tag
@@ -226,7 +257,8 @@ struct ReleaseCommand: AsyncParsableCommand {
         repo: String,
         tag: String,
         token: String,
-        sha256: String
+        sha256: String,
+        zipFilename: String
     ) async throws -> String {
         let url = URL(string: "https://api.github.com/repos/\(repo)/releases")!
         var request = URLRequest(url: url)
@@ -250,7 +282,7 @@ struct ReleaseCommand: AsyncParsableCommand {
             ## SHA256
 
             ```
-            \(sha256)  \(Self.zipFilename)
+            \(sha256)  \(zipFilename)
             ```
             """,
             "prerelease": false,
@@ -263,17 +295,16 @@ struct ReleaseCommand: AsyncParsableCommand {
               httpResponse.statusCode == 201 else {
             if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let message = errorJson["message"] as? String {
-                throw ReleaseError.apiError(message)
+                throw DatabaseReleaseError.apiError(message)
             }
-            throw ReleaseError.apiError("Failed to create release")
+            throw DatabaseReleaseError.apiError("Failed to create release")
         }
 
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let uploadURL = json["upload_url"] as? String else {
-            throw ReleaseError.apiError("Missing upload_url in response")
+            throw DatabaseReleaseError.apiError("Missing upload_url in response")
         }
 
-        // Remove template part from upload URL
         return uploadURL.replacingOccurrences(of: "{?name,label}", with: "")
     }
 
@@ -284,7 +315,7 @@ struct ReleaseCommand: AsyncParsableCommand {
         token: String
     ) async throws {
         guard let url = URL(string: "\(uploadURL)?name=\(filename)") else {
-            throw ReleaseError.apiError("Invalid upload URL")
+            throw DatabaseReleaseError.apiError("Invalid upload URL")
         }
 
         var request = URLRequest(url: url)
@@ -301,35 +332,33 @@ struct ReleaseCommand: AsyncParsableCommand {
               httpResponse.statusCode == 201 else {
             if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let message = errorJson["message"] as? String {
-                throw ReleaseError.apiError(message)
+                throw DatabaseReleaseError.apiError(message)
             }
-            throw ReleaseError.apiError("Failed to upload asset")
+            throw DatabaseReleaseError.apiError("Failed to upload asset")
         }
     }
+}
 
-    // MARK: - Helpers
+// MARK: - URL Extension
 
-    private func fileSize(at url: URL) throws -> Int64 {
-        let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
-        return attrs[.size] as? Int64 ?? 0
-    }
-
-    private func formatBytes(_ bytes: Int64) -> String {
-        let megabytes = Double(bytes) / 1000000
-        if megabytes >= 1000 {
-            return String(format: "%.1f GB", megabytes / 1000)
+extension URL {
+    var expandingTildeInPath: URL {
+        if path.hasPrefix("~") {
+            let expanded = NSString(string: path).expandingTildeInPath
+            return URL(fileURLWithPath: expanded)
         }
-        return String(format: "%.1f MB", megabytes)
+        return self
     }
 }
 
 // MARK: - Errors
 
-enum ReleaseError: Error, CustomStringConvertible {
+enum DatabaseReleaseError: Error, CustomStringConvertible {
     case missingDatabase(String, String)
     case zipFailed
     case sha256Failed
     case missingToken
+    case versionNotFound
     case apiError(String)
 
     var description: String {
@@ -347,6 +376,8 @@ enum ReleaseError: Error, CustomStringConvertible {
             Create a token at: https://github.com/settings/tokens
             Then: export GITHUB_TOKEN=your_token
             """
+        case .versionNotFound:
+            return "Could not find version in Constants.swift"
         case .apiError(let message):
             return "GitHub API error: \(message)"
         }
