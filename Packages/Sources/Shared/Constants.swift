@@ -408,6 +408,9 @@ extension Shared {
             /// Search HIG tool name
             public static let toolSearchHIG = "search_hig"
 
+            /// Search all tool name (unified search across docs, archive, and samples)
+            public static let toolSearchAll = "search_all"
+
             // MARK: Sample Code Tool Names
 
             /// Search samples tool name
@@ -464,9 +467,11 @@ extension Shared {
             public static let toolSearchDocsDescription = """
             Search Apple documentation and Swift Evolution proposals by keywords. \
             Returns a ranked list of relevant documents with URIs that can be read using resources/read. \
+            IMPORTANT: For foundational topics (Core Animation, Quartz 2D, KVO, KVC, threading, memory management), \
+            set include_archive=true to search Apple Archive legacy guides - these contain essential conceptual \
+            documentation not available in modern API docs. For working code examples, also use search_samples. \
             Optional parameters: source (apple-docs, swift-evolution, swift-org, swift-book, apple-archive, hig), \
-            framework (e.g. swiftui, foundation), include_archive (bool, includes legacy Apple Archive guides \
-            like Core Animation Programming Guide - useful for foundational concepts not in modern docs), \
+            framework (e.g. swiftui, foundation), include_archive (bool, default false - set true for conceptual guides), \
             min_ios (filter to APIs available on iOS version, e.g. "13.0"), \
             min_macos (filter to APIs available on macOS version, e.g. "10.15"), \
             min_tvos (filter to APIs available on tvOS version, e.g. "13.0"), \
@@ -492,6 +497,15 @@ extension Shared {
             Returns a ranked list of design guidelines with URIs that can be read using resources/read. \
             Optional parameters: platform (iOS, macOS, watchOS, visionOS, tvOS), \
             category (foundations, patterns, components, technologies, inputs), limit.
+            """
+
+            /// Search all tool description (unified search)
+            public static let toolSearchAllDescription = """
+            RECOMMENDED: Unified search across ALL documentation sources in one call. \
+            Searches Apple docs, Apple Archive legacy guides (Core Animation, Quartz 2D, KVO/KVC, etc.), \
+            AND sample code projects simultaneously. Use this when you want comprehensive results \
+            without needing to call multiple search tools. Returns combined results organized by source type. \
+            Optional parameters: framework, limit (default 10 per source type).
             """
 
             // MARK: Sample Code Tool Descriptions
@@ -607,6 +621,20 @@ extension Shared {
                 Run `\(buildIndexCommand)` to index your documentation._
                 """
             }
+
+            /// Tip for exploring other sources when results are limited
+            public static let tipExploreOtherSources = """
+            💡 **Need more?** Try these additional sources:
+            - `search_docs` with `include_archive: true` for foundational guides \
+            (Core Animation, Quartz 2D, KVO/KVC, threading)
+            - `search_samples` for working code examples
+            """
+
+            /// Tip for archive when no results
+            public static let tipTryArchive = """
+            💡 **Tip:** For conceptual/foundational topics, try `search_docs` with \
+            `include_archive: true` to search Apple Archive legacy programming guides.
+            """
 
             // MARK: Formatting
 

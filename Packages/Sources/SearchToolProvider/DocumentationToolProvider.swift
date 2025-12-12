@@ -190,6 +190,11 @@ public actor DocumentationToolProvider: ToolProvider {
 
         if results.isEmpty {
             markdown += Shared.Constants.MCP.messageNoResults
+            markdown += "\n\n"
+            // Suggest archive if not already searching it
+            if !includeArchive, source != Shared.Constants.SourcePrefix.appleArchive {
+                markdown += Shared.Constants.MCP.tipTryArchive
+            }
         } else {
             for (index, result) in results.enumerated() {
                 markdown += "## \(index + 1). \(result.title)\n\n"
@@ -213,6 +218,12 @@ public actor DocumentationToolProvider: ToolProvider {
 
             markdown += "\n\n"
             markdown += Shared.Constants.MCP.tipUseResourcesRead
+
+            // Show additional sources tip when results are limited (< 5) and not already using archive
+            if results.count < 5, !includeArchive, source != Shared.Constants.SourcePrefix.appleArchive {
+                markdown += "\n\n"
+                markdown += Shared.Constants.MCP.tipExploreOtherSources
+            }
             markdown += "\n"
         }
 
