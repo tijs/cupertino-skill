@@ -52,6 +52,36 @@ struct SearchCommand: AsyncParsableCommand {
 
     @Option(
         name: .long,
+        help: "Filter to APIs available on iOS version (e.g., 13.0, 15.0)"
+    )
+    var minIos: String?
+
+    @Option(
+        name: .long,
+        help: "Filter to APIs available on macOS version (e.g., 10.15, 12.0)"
+    )
+    var minMacos: String?
+
+    @Option(
+        name: .long,
+        help: "Filter to APIs available on tvOS version (e.g., 13.0, 15.0)"
+    )
+    var minTvos: String?
+
+    @Option(
+        name: .long,
+        help: "Filter to APIs available on watchOS version (e.g., 6.0, 8.0)"
+    )
+    var minWatchos: String?
+
+    @Option(
+        name: .long,
+        help: "Filter to APIs available on visionOS version (e.g., 1.0, 2.0)"
+    )
+    var minVisionos: String?
+
+    @Option(
+        name: .long,
         help: "Path to search database"
     )
     var searchDb: String?
@@ -71,7 +101,12 @@ struct SearchCommand: AsyncParsableCommand {
                 framework: framework,
                 language: language,
                 limit: limit,
-                includeArchive: includeArchive
+                includeArchive: includeArchive,
+                minimumiOS: minIos,
+                minimumMacOS: minMacos,
+                minimumTvOS: minTvos,
+                minimumWatchOS: minWatchos,
+                minimumVisionOS: minVisionos
             ))
         }
 
@@ -86,7 +121,16 @@ struct SearchCommand: AsyncParsableCommand {
         case .markdown:
             let formatter = MarkdownSearchResultFormatter(
                 query: query,
-                filters: SearchFilters(source: source, framework: framework, language: language),
+                filters: SearchFilters(
+                    source: source,
+                    framework: framework,
+                    language: language,
+                    minimumiOS: minIos,
+                    minimumMacOS: minMacos,
+                    minimumTvOS: minTvos,
+                    minimumWatchOS: minWatchos,
+                    minimumVisionOS: minVisionos
+                ),
                 config: .cliDefault
             )
             Log.output(formatter.format(results))

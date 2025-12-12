@@ -98,6 +98,76 @@ cupertino search "Array" --limit 5
 cupertino search "SwiftUI" --limit 50
 ```
 
+### --min-ios
+
+Filter results to APIs available on a specific iOS version or earlier.
+
+**Type:** String (version number, e.g., `13.0`, `15.0`, `17.0`)
+
+Only returns documents that have availability data and were introduced at or before the specified version.
+
+**Example:**
+```bash
+cupertino search "Combine" --min-ios 13.0
+cupertino search "Observable" --min-ios 17.0 --framework swiftui
+```
+
+### --min-macos
+
+Filter results to APIs available on a specific macOS version or earlier.
+
+**Type:** String (version number, e.g., `10.15`, `12.0`, `14.0`)
+
+Only returns documents that have availability data and were introduced at or before the specified version.
+
+**Example:**
+```bash
+cupertino search "Combine" --min-macos 10.15
+cupertino search "SwiftData" --min-macos 14.0
+```
+
+### --min-tvos
+
+Filter results to APIs available on a specific tvOS version or earlier.
+
+**Type:** String (version number, e.g., `13.0`, `15.0`, `17.0`)
+
+Only returns documents that have availability data and were introduced at or before the specified version.
+
+**Example:**
+```bash
+cupertino search "animation" --min-tvos 13.0
+cupertino search "player" --min-tvos 15.0 --framework avfoundation
+```
+
+### --min-watchos
+
+Filter results to APIs available on a specific watchOS version or earlier.
+
+**Type:** String (version number, e.g., `6.0`, `8.0`, `10.0`)
+
+Only returns documents that have availability data and were introduced at or before the specified version.
+
+**Example:**
+```bash
+cupertino search "health" --min-watchos 6.0
+cupertino search "workout" --min-watchos 8.0 --framework healthkit
+```
+
+### --min-visionos
+
+Filter results to APIs available on a specific visionOS version or earlier.
+
+**Type:** String (version number, e.g., `1.0`, `2.0`)
+
+Only returns documents that have availability data and were introduced at or before the specified version.
+
+**Example:**
+```bash
+cupertino search "immersive" --min-visionos 1.0
+cupertino search "spatial" --min-visionos 1.0 --framework realitykit
+```
+
 ### --search-db
 
 Path to the search database file.

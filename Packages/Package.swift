@@ -24,6 +24,7 @@ let macOSOnlyProducts: [Product] = [
     .singleTargetLibrary("SampleIndex"),
     .singleTargetLibrary("Services"),
     .singleTargetLibrary("Resources"),
+    .singleTargetLibrary("Availability"),
     .singleTargetLibrary("MCPSupport"),
     .singleTargetLibrary("SearchToolProvider"),
     .singleTargetLibrary("MCPClient"),
@@ -178,6 +179,15 @@ let targets: [Target] = {
         dependencies: ["RemoteSync", "TestSupport"]
     )
 
+    let availabilityTarget = Target.target(
+        name: "Availability",
+        dependencies: []
+    )
+    let availabilityTestsTarget = Target.testTarget(
+        name: "AvailabilityTests",
+        dependencies: ["Availability", "TestSupport"]
+    )
+
     let cliTarget = Target.executableTarget(
         name: "CLI",
         dependencies: [
@@ -189,6 +199,7 @@ let targets: [Target] = {
             "Services",
             "Logging",
             "RemoteSync",
+            "Availability",
             // MCP dependencies (for mcp serve command)
             "MCP",
             "MCPSupport",
@@ -296,6 +307,8 @@ let targets: [Target] = {
         mcpClientTestsTarget,
         remoteSyncTarget,
         remoteSyncTestsTarget,
+        availabilityTarget,
+        availabilityTestsTarget,
         testSupportTarget,
         cliTarget,
         tuiTarget,

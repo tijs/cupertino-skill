@@ -45,6 +45,7 @@ cupertino serve
 cupertino search "SwiftUI View" --limit 10
 cupertino search "async" --source swift-evolution
 cupertino search "Core Animation" --include-archive
+cupertino search "Observable" --min-ios 17.0  # Filter by iOS version
 
 # Read full document
 cupertino read "apple-docs://swiftui/documentation_swiftui_view" --format markdown
@@ -83,10 +84,13 @@ cupertino fetch --type evolution
 cupertino fetch --type hig       # Human Interface Guidelines
 cupertino fetch --type archive   # Legacy programming guides
 
-# 2. Build search index
+# 2. Fetch availability data (adds iOS/macOS version info)
+cupertino fetch --type availability
+
+# 3. Build search index
 cupertino save
 
-# 3. Start server or use CLI
+# 4. Start server or use CLI
 cupertino serve  # For MCP/AI agents
 cupertino search "your query"  # For CLI usage
 ```

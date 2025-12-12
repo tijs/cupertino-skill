@@ -80,6 +80,7 @@ All Cupertino artifacts are stored under:
 | `cupertino fetch --type code` | ZIP files + checkpoint | `~/.cupertino/sample-code/` |
 | `cupertino fetch --type samples` | Git clone (606 projects) | `~/.cupertino/sample-code/cupertino-sample-code/` |
 | `cupertino fetch --type packages` | Package data + checkpoint | `~/.cupertino/packages/` |
+| `cupertino fetch --type availability` | Updates JSON with availability | `~/.cupertino/docs/*.json` |
 | `cupertino save` | Documentation search database | `~/.cupertino/search.db` |
 | `cupertino index` | Sample code search database | `~/.cupertino/samples.db` |
 

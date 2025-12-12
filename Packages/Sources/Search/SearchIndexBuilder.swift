@@ -5,6 +5,11 @@ import Shared
 
 // MARK: - Search Index Builder
 
+// swiftlint:disable type_body_length file_length
+// Justification: IndexBuilder orchestrates the complete search index building process.
+// It handles: documentation parsing, FTS5 indexing, availability data, statistics, and progress tracking.
+// The actor manages state across multiple indexing stages that must be coordinated atomically.
+
 /// Builds search index from crawled documentation
 extension Search {
     public actor IndexBuilder {
@@ -437,6 +442,10 @@ extension Search {
             let modDate = attributes?[.modificationDate] as? Date ?? Date()
             let contentHash = HashUtilities.sha256(of: content)
 
+            // Extract Swift version from status and map to iOS/macOS
+            let status = extractProposalStatus(from: content)
+            let availability = mapSwiftVersionToAvailability(status)
+
             // Swift Evolution source - no framework, just source
             try await searchIndex.indexDocument(
                 uri: uri,
@@ -446,8 +455,72 @@ extension Search {
                 content: content,
                 filePath: file.path,
                 contentHash: contentHash,
-                lastCrawled: modDate
+                lastCrawled: modDate,
+                minIOS: availability.iOS,
+                minMacOS: availability.macOS,
+                availabilitySource: availability.iOS != nil ? "swift-version" : nil
             )
+        }
+
+        /// Map Swift version to iOS/macOS availability
+        /// Based on: https://swiftversion.net
+        private func mapSwiftVersionToAvailability(_ status: String?) -> (iOS: String?, macOS: String?) {
+            guard let status else { return (nil, nil) }
+
+            // Extract Swift version from status like "Implemented (Swift 5.5)"
+            let pattern = #"Swift\s+(\d+(?:\.\d+)?)"#
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+                  let match = regex.firstMatch(in: status, range: NSRange(status.startIndex..., in: status)),
+                  match.numberOfRanges > 1,
+                  let versionRange = Range(match.range(at: 1), in: status)
+            else {
+                return (nil, nil)
+            }
+
+            let swiftVersion = String(status[versionRange])
+            let major = swiftVersion.split(separator: ".").first.flatMap { Int($0) } ?? 0
+            let minor = swiftVersion.split(separator: ".").dropFirst().first.flatMap { Int($0) } ?? 0
+
+            // Swift version to iOS/macOS mapping
+            switch (major, minor) {
+            case (6, _):
+                return ("18.0", "15.0")
+            case (5, 10):
+                return ("17.4", "14.4")
+            case (5, 9):
+                return ("17.0", "14.0")
+            case (5, 8):
+                return ("16.4", "13.3")
+            case (5, 7):
+                return ("16.0", "13.0")
+            case (5, 6):
+                return ("15.4", "12.3")
+            case (5, 5):
+                return ("15.0", "12.0")
+            case (5, 4):
+                return ("14.5", "11.3")
+            case (5, 3):
+                return ("14.0", "11.0")
+            case (5, 2):
+                return ("13.4", "10.15.4")
+            case (5, 1):
+                return ("13.0", "10.15")
+            case (5, 0):
+                return ("12.2", "10.14.4")
+            case (4, 2):
+                return ("12.0", "10.14")
+            case (4, 1):
+                return ("11.3", "10.13.4")
+            case (4, 0):
+                return ("11.0", "10.13")
+            case (3, _):
+                return ("10.0", "10.12")
+            case (2, _):
+                return ("9.0", "10.11")
+            default:
+                // Swift 1.x or unknown
+                return ("8.0", "10.9")
+            }
         }
 
         /// Extract status from Swift Evolution proposal markdown
@@ -578,12 +651,20 @@ extension Search {
 
                 do {
                     // Use source as framework for swift-org (swift-book or swift-org)
+                    // swift-book is universal language documentation (all platforms with Swift support)
+                    let isSwiftBook = source == "swift-book"
                     try await searchIndex.indexStructuredDocument(
                         uri: uri,
                         source: source,
                         framework: source,
                         page: structuredPage,
-                        jsonData: jsonString
+                        jsonData: jsonString,
+                        overrideMinIOS: isSwiftBook ? "8.0" : nil,
+                        overrideMinMacOS: isSwiftBook ? "10.9" : nil,
+                        overrideMinTvOS: isSwiftBook ? "9.0" : nil,
+                        overrideMinWatchOS: isSwiftBook ? "2.0" : nil,
+                        overrideMinVisionOS: isSwiftBook ? "1.0" : nil,
+                        overrideAvailabilitySource: isSwiftBook ? "universal" : nil
                     )
 
                     // Index code examples if present
@@ -635,6 +716,9 @@ extension Search {
             var indexed = 0
             var skipped = 0
 
+            // Cache framework availability lookups
+            var frameworkAvailabilityCache: [String: FrameworkAvailability] = [:]
+
             for (index, file) in markdownFiles.enumerated() {
                 guard let content = try? String(contentsOf: file, encoding: .utf8) else {
                     skipped += 1
@@ -664,6 +748,15 @@ extension Search {
                 let attributes = try? FileManager.default.attributesOfItem(atPath: file.path)
                 let modDate = attributes?[.modificationDate] as? Date ?? Date()
 
+                // Look up availability from framework (cached)
+                let availability: FrameworkAvailability
+                if let cached = frameworkAvailabilityCache[framework] {
+                    availability = cached
+                } else {
+                    availability = await searchIndex.getFrameworkAvailability(framework: framework)
+                    frameworkAvailabilityCache[framework] = availability
+                }
+
                 do {
                     // Apple Archive source with framework (or book title as fallback)
                     try await searchIndex.indexDocument(
@@ -674,7 +767,13 @@ extension Search {
                         content: content,
                         filePath: file.path,
                         contentHash: contentHash,
-                        lastCrawled: modDate
+                        lastCrawled: modDate,
+                        minIOS: availability.minIOS,
+                        minMacOS: availability.minMacOS,
+                        minTvOS: availability.minTvOS,
+                        minWatchOS: availability.minWatchOS,
+                        minVisionOS: availability.minVisionOS,
+                        availabilitySource: availability.minIOS != nil ? "framework" : nil
                     )
                     indexed += 1
                 } catch {
@@ -740,6 +839,7 @@ extension Search {
 
                 do {
                     // HIG source with category as framework
+                    // HIG is universal - applies to all Apple platforms
                     try await searchIndex.indexDocument(
                         uri: uri,
                         source: Shared.Constants.SourcePrefix.hig,
@@ -748,7 +848,13 @@ extension Search {
                         content: content,
                         filePath: file.path,
                         contentHash: contentHash,
-                        lastCrawled: modDate
+                        lastCrawled: modDate,
+                        minIOS: "2.0",
+                        minMacOS: "10.0",
+                        minTvOS: "9.0",
+                        minWatchOS: "2.0",
+                        minVisionOS: "1.0",
+                        availabilitySource: "universal"
                     )
                     indexed += 1
                 } catch {
@@ -879,18 +985,35 @@ extension Search {
 
             logInfo("📚 Indexing \(entries.count) sample code entries...")
 
+            // Cache framework availability lookups
+            var frameworkAvailabilityCache: [String: FrameworkAvailability] = [:]
+
             var indexed = 0
             var skipped = 0
 
             for (index, entry) in entries.enumerated() {
                 do {
+                    // Look up availability from framework (cached)
+                    let availability: FrameworkAvailability
+                    if let cached = frameworkAvailabilityCache[entry.framework] {
+                        availability = cached
+                    } else {
+                        availability = await searchIndex.getFrameworkAvailability(framework: entry.framework)
+                        frameworkAvailabilityCache[entry.framework] = availability
+                    }
+
                     try await searchIndex.indexSampleCode(
                         url: entry.url,
                         framework: entry.framework,
                         title: entry.title,
                         description: entry.description,
                         zipFilename: entry.zipFilename,
-                        webURL: entry.webURL
+                        webURL: entry.webURL,
+                        minIOS: availability.minIOS,
+                        minMacOS: availability.minMacOS,
+                        minTvOS: availability.minTvOS,
+                        minWatchOS: availability.minWatchOS,
+                        minVisionOS: availability.minVisionOS
                     )
                     indexed += 1
                 } catch {

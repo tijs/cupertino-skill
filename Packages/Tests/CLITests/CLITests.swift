@@ -148,13 +148,14 @@ struct FetchTypeTests {
     func directFetchTypes() {
         let directFetch = Cupertino.FetchType.directFetchTypes
 
-        #expect(directFetch.count == 6)
+        #expect(directFetch.count == 7)
         #expect(directFetch.contains(.packages))
         #expect(directFetch.contains(.packageDocs))
         #expect(directFetch.contains(.code))
         #expect(directFetch.contains(.samples))
         #expect(directFetch.contains(.archive))
         #expect(directFetch.contains(.hig))
+        #expect(directFetch.contains(.availability))
     }
 
     @Test("Type categorization is mutually exclusive")
@@ -167,14 +168,14 @@ struct FetchTypeTests {
 
         // All types except .all should be categorized
         let allCategorized = webCrawl.union(directFetch)
-        #expect(allCategorized.count == 9) // 3 web + 6 direct
+        #expect(allCategorized.count == 10) // 3 web + 7 direct
     }
 
     @Test("All types includes all categorized types")
     func allTypesComplete() {
         let allTypes = Cupertino.FetchType.allTypes
 
-        #expect(allTypes.count == 9)
+        #expect(allTypes.count == 10)
         #expect(allTypes.contains(.docs))
         #expect(allTypes.contains(.swift))
         #expect(allTypes.contains(.evolution))
@@ -184,6 +185,7 @@ struct FetchTypeTests {
         #expect(allTypes.contains(.samples))
         #expect(allTypes.contains(.archive))
         #expect(allTypes.contains(.hig))
+        #expect(allTypes.contains(.availability))
     }
 
     @Test("Package-docs raw value has hyphen")

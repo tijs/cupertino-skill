@@ -1,5 +1,10 @@
 import Foundation
 
+// swiftlint:disable type_body_length
+// Justification: InputHandler processes all keyboard input for the TUI application.
+// It handles: navigation, selection, filtering, pagination, and view-specific actions.
+// The switch statement covers all input cases for consistent keyboard handling.
+
 /// Result of input handling - either continue running, quit, or request render
 enum InputResult {
     case continueRunning

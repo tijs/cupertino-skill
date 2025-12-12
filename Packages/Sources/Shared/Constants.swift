@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Cupertino Constants
 
-// swiftlint:disable type_body_length
+// swiftlint:disable type_body_length file_length
 // Justification: Shared.Constants serves as central configuration hub for the entire application.
 // Contains directory names, file names, URL patterns, limits, delays, and MCP configuration.
 // Splitting would scatter related constants and reduce discoverability.
@@ -144,7 +144,7 @@ extension Shared {
             public static let userAgent = "CupertinoCrawler/1.0"
 
             /// Current version
-            public static let version = "0.5.0"
+            public static let version = "0.6.0"
         }
 
         // MARK: - Display Names
@@ -466,7 +466,12 @@ extension Shared {
             Returns a ranked list of relevant documents with URIs that can be read using resources/read. \
             Optional parameters: source (apple-docs, swift-evolution, swift-org, swift-book, apple-archive, hig), \
             framework (e.g. swiftui, foundation), include_archive (bool, includes legacy Apple Archive guides \
-            like Core Animation Programming Guide - useful for foundational concepts not in modern docs).
+            like Core Animation Programming Guide - useful for foundational concepts not in modern docs), \
+            min_ios (filter to APIs available on iOS version, e.g. "13.0"), \
+            min_macos (filter to APIs available on macOS version, e.g. "10.15"), \
+            min_tvos (filter to APIs available on tvOS version, e.g. "13.0"), \
+            min_watchos (filter to APIs available on watchOS version, e.g. "6.0"), \
+            min_visionos (filter to APIs available on visionOS version, e.g. "1.0").
             """
 
             /// List frameworks tool description
@@ -559,6 +564,21 @@ extension Shared {
 
             /// JSON Schema parameter: search_files
             public static let schemaParamSearchFiles = "search_files"
+
+            /// JSON Schema parameter: min_ios
+            public static let schemaParamMinIOS = "min_ios"
+
+            /// JSON Schema parameter: min_macos
+            public static let schemaParamMinMacOS = "min_macos"
+
+            /// JSON Schema parameter: min_tvos
+            public static let schemaParamMinTvOS = "min_tvos"
+
+            /// JSON Schema parameter: min_watchos
+            public static let schemaParamMinWatchOS = "min_watchos"
+
+            /// JSON Schema parameter: min_visionos
+            public static let schemaParamMinVisionOS = "min_visionos"
 
             /// Format value: json
             public static let formatValueJSON = "json"

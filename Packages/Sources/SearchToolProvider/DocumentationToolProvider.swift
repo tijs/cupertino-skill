@@ -77,6 +77,7 @@ public actor DocumentationToolProvider: ToolProvider {
 
     // MARK: - Tool Handlers
 
+    // swiftlint:disable:next cyclomatic_complexity
     private func handleSearchDocs(args: ArgumentExtractor) async throws -> CallToolResult {
         let query: String = try args.require(Shared.Constants.MCP.schemaParamQuery)
         let source = args.optional(Shared.Constants.MCP.schemaParamSource)
@@ -84,17 +85,78 @@ public actor DocumentationToolProvider: ToolProvider {
         let language = args.optional(Shared.Constants.MCP.schemaParamLanguage)
         let limit = args.limit()
         let includeArchive = args.includeArchive()
+        let minIOS = args.minIOS()
+        let minMacOS = args.minMacOS()
+        let minTvOS = args.minTvOS()
+        let minWatchOS = args.minWatchOS()
+        let minVisionOS = args.minVisionOS()
+
+        // Fetch more results if filtering by version (to account for filtering)
+        let hasVersionFilter = minIOS != nil || minMacOS != nil || minTvOS != nil ||
+            minWatchOS != nil || minVisionOS != nil
+        let fetchLimit = hasVersionFilter
+            ? min(limit * 3, Shared.Constants.Limit.maxSearchLimit)
+            : limit
 
         // Perform search
         // Archive documentation is excluded by default unless include_archive=true or source=apple-archive
-        let results = try await searchIndex.search(
+        var results = try await searchIndex.search(
             query: query,
             source: source,
             framework: framework,
             language: language,
-            limit: limit,
+            limit: fetchLimit,
             includeArchive: includeArchive
         )
+
+        // Apply version filters if specified
+        if let minIOS {
+            results = results.filter { result in
+                guard let resultVersion = result.minimumiOS else {
+                    return false
+                }
+                return Self.isVersion(resultVersion, lessThanOrEqualTo: minIOS)
+            }
+        }
+
+        if let minMacOS {
+            results = results.filter { result in
+                guard let resultVersion = result.minimumMacOS else {
+                    return false
+                }
+                return Self.isVersion(resultVersion, lessThanOrEqualTo: minMacOS)
+            }
+        }
+
+        if let minTvOS {
+            results = results.filter { result in
+                guard let resultVersion = result.minimumTvOS else {
+                    return false
+                }
+                return Self.isVersion(resultVersion, lessThanOrEqualTo: minTvOS)
+            }
+        }
+
+        if let minWatchOS {
+            results = results.filter { result in
+                guard let resultVersion = result.minimumWatchOS else {
+                    return false
+                }
+                return Self.isVersion(resultVersion, lessThanOrEqualTo: minWatchOS)
+            }
+        }
+
+        if let minVisionOS {
+            results = results.filter { result in
+                guard let resultVersion = result.minimumVisionOS else {
+                    return false
+                }
+                return Self.isVersion(resultVersion, lessThanOrEqualTo: minVisionOS)
+            }
+        }
+
+        // Trim to requested limit after filtering
+        results = Array(results.prefix(limit))
 
         // Format results as markdown
         var markdown = "# Search Results for \"\(query)\"\n\n"
@@ -108,6 +170,21 @@ public actor DocumentationToolProvider: ToolProvider {
         if let language {
             markdown += "_Filtered to language: **\(language)**_\n\n"
         }
+        if let minIOS {
+            markdown += "_Filtered to iOS: **\(minIOS)+**_\n\n"
+        }
+        if let minMacOS {
+            markdown += "_Filtered to macOS: **\(minMacOS)+**_\n\n"
+        }
+        if let minTvOS {
+            markdown += "_Filtered to tvOS: **\(minTvOS)+**_\n\n"
+        }
+        if let minWatchOS {
+            markdown += "_Filtered to watchOS: **\(minWatchOS)+**_\n\n"
+        }
+        if let minVisionOS {
+            markdown += "_Filtered to visionOS: **\(minVisionOS)+**_\n\n"
+        }
 
         markdown += "Found **\(results.count)** result\(results.count == 1 ? "" : "s"):\n\n"
 
@@ -118,6 +195,9 @@ public actor DocumentationToolProvider: ToolProvider {
                 markdown += "## \(index + 1). \(result.title)\n\n"
                 markdown += "- **Framework:** `\(result.framework)`\n"
                 markdown += "- **URI:** `\(result.uri)`\n"
+                if let availabilityStr = result.availabilityString, !availabilityStr.isEmpty {
+                    markdown += "- **Availability:** \(availabilityStr)\n"
+                }
                 markdown += "- **Score:** \(String(format: Shared.Constants.MCP.formatScore, result.score))\n"
                 markdown += "- **Words:** \(result.wordCount)\n\n"
 
@@ -242,6 +322,9 @@ public actor DocumentationToolProvider: ToolProvider {
             for (index, result) in results.enumerated() {
                 markdown += "## \(index + 1). \(result.title)\n\n"
                 markdown += "- **URI:** `\(result.uri)`\n"
+                if let availabilityStr = result.availabilityString, !availabilityStr.isEmpty {
+                    markdown += "- **Availability:** \(availabilityStr)\n"
+                }
                 markdown += "- **Score:** \(String(format: Shared.Constants.MCP.formatScore, result.score))\n\n"
 
                 // Add summary
@@ -264,5 +347,24 @@ public actor DocumentationToolProvider: ToolProvider {
         )
 
         return CallToolResult(content: [content])
+    }
+
+    // MARK: - Version Comparison
+
+    /// Compare version strings (e.g., "13.0" vs "15.0")
+    /// Returns true if lhs <= rhs (API was introduced before or at target version)
+    private static func isVersion(_ lhs: String, lessThanOrEqualTo rhs: String) -> Bool {
+        let lhsComponents = lhs.split(separator: ".").compactMap { Int($0) }
+        let rhsComponents = rhs.split(separator: ".").compactMap { Int($0) }
+
+        // Compare component by component
+        for idx in 0..<max(lhsComponents.count, rhsComponents.count) {
+            let lhsValue = idx < lhsComponents.count ? lhsComponents[idx] : 0
+            let rhsValue = idx < rhsComponents.count ? rhsComponents[idx] : 0
+
+            if lhsValue < rhsValue { return true }
+            if lhsValue > rhsValue { return false }
+        }
+        return true // Equal versions
     }
 }
