@@ -162,7 +162,7 @@ struct SearchCommand: AsyncParsableCommand {
         case .text:
             let formatter = TextSearchResultFormatter(query: query)
             var output = formatter.format(results)
-            output += formatTeaserSection(teasers)
+            output += formatTeaserSectionText(teasers)
             Log.output(output)
         case .json:
             let formatter = JSONSearchResultFormatter()
@@ -183,27 +183,20 @@ struct SearchCommand: AsyncParsableCommand {
                 config: .cliDefault
             )
             var output = formatter.format(results)
-            output += formatTeaserSection(teasers)
+            // Use shared TeaserMarkdownFormatter (same as MCP)
+            let teaserFormatter = TeaserMarkdownFormatter()
+            output += teaserFormatter.format(teasers)
             Log.output(output)
         }
     }
 
     // MARK: - Teaser Results
 
-    /// Container for all teaser results from alternate sources
-    private struct TeaserResults {
-        var samples: [SampleIndex.Project] = []
-        var archive: [Search.Result] = []
-        var hig: [Search.Result] = []
-        var swiftEvolution: [Search.Result] = []
-        var swiftOrg: [Search.Result] = []
-        var swiftBook: [Search.Result] = []
-        var packages: [Search.Result] = []
-    }
+    // Uses shared TeaserResults from Services module
 
     /// Fetch teaser results from all sources the user didn't search
-    private func fetchAllTeasers() async -> TeaserResults {
-        var teasers = TeaserResults()
+    private func fetchAllTeasers() async -> Services.TeaserResults {
+        var teasers = Services.TeaserResults()
         let currentSource = source ?? Shared.Constants.SourcePrefix.appleDocs
 
         // Samples teaser (unless searching samples)
@@ -281,8 +274,8 @@ struct SearchCommand: AsyncParsableCommand {
         }
     }
 
-    /// Format teaser section for CLI output (only shows sources with results)
-    private func formatTeaserSection(_ teasers: TeaserResults) -> String {
+    /// Format teaser section for CLI text output (different style from markdown)
+    private func formatTeaserSectionText(_ teasers: Services.TeaserResults) -> String {
         var output = ""
 
         // Sample code teaser
@@ -292,7 +285,7 @@ struct SearchCommand: AsyncParsableCommand {
             for project in teasers.samples {
                 output += "  • \(project.title)\n"
             }
-            output += "  → Use --source samples\n"
+            output += "  → Use --source \(Shared.Constants.SourcePrefix.samples)\n"
         }
 
         // Archive teaser
@@ -302,7 +295,7 @@ struct SearchCommand: AsyncParsableCommand {
             for result in teasers.archive {
                 output += "  • \(result.title)\n"
             }
-            output += "  → Use --source apple-archive\n"
+            output += "  → Use --source \(Shared.Constants.SourcePrefix.appleArchive)\n"
         }
 
         // HIG teaser
@@ -312,7 +305,7 @@ struct SearchCommand: AsyncParsableCommand {
             for result in teasers.hig {
                 output += "  • \(result.title)\n"
             }
-            output += "  → Use --source hig\n"
+            output += "  → Use --source \(Shared.Constants.SourcePrefix.hig)\n"
         }
 
         // Swift Evolution teaser
@@ -322,7 +315,7 @@ struct SearchCommand: AsyncParsableCommand {
             for result in teasers.swiftEvolution {
                 output += "  • \(result.title)\n"
             }
-            output += "  → Use --source swift-evolution\n"
+            output += "  → Use --source \(Shared.Constants.SourcePrefix.swiftEvolution)\n"
         }
 
         // Swift.org teaser
@@ -332,7 +325,7 @@ struct SearchCommand: AsyncParsableCommand {
             for result in teasers.swiftOrg {
                 output += "  • \(result.title)\n"
             }
-            output += "  → Use --source swift-org\n"
+            output += "  → Use --source \(Shared.Constants.SourcePrefix.swiftOrg)\n"
         }
 
         // Swift Book teaser
@@ -342,7 +335,7 @@ struct SearchCommand: AsyncParsableCommand {
             for result in teasers.swiftBook {
                 output += "  • \(result.title)\n"
             }
-            output += "  → Use --source swift-book\n"
+            output += "  → Use --source \(Shared.Constants.SourcePrefix.swiftBook)\n"
         }
 
         // Packages teaser
@@ -352,7 +345,7 @@ struct SearchCommand: AsyncParsableCommand {
             for result in teasers.packages {
                 output += "  • \(result.title)\n"
             }
-            output += "  → Use --source packages\n"
+            output += "  → Use --source \(Shared.Constants.SourcePrefix.packages)\n"
         }
 
         return output

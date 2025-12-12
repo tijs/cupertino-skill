@@ -88,9 +88,9 @@ public struct MarkdownSearchResultFormatter: ResultFormatter {
             }
         }
 
-        // Always remind AI about other sources
+        // Always remind AI about other sources (use same source we showed at top)
         md += "\n\n---\n\n"
-        md += Shared.Constants.MCP.tipOtherSources(excluding: filters?.source)
+        md += Shared.Constants.MCP.tipOtherSources(excluding: searchedSource)
         md += "\n"
 
         return md
