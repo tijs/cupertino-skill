@@ -1,7 +1,7 @@
 # Cupertino Deployment Guide
 
 **Version:** 0.6.0
-**Last Updated:** 2025-12-10
+**Last Updated:** 2025-12-12
 
 This guide covers the complete release process for Cupertino.
 
@@ -9,10 +9,33 @@ This guide covers the complete release process for Cupertino.
 
 ## Table of Contents
 
-1. [Automated Release (Recommended)](#automated-release-recommended)
-2. [Manual Release Workflow](#manual-release-workflow)
-3. [Installation Methods](#installation-methods)
-4. [Troubleshooting](#troubleshooting)
+1. [Environment Setup](#environment-setup)
+2. [Automated Release (Recommended)](#automated-release-recommended)
+3. [Manual Release Workflow](#manual-release-workflow)
+4. [Installation Methods](#installation-methods)
+5. [Troubleshooting](#troubleshooting)
+
+---
+
+## Environment Setup
+
+**IMPORTANT:** Before building or releasing, set the `CUPERTINO_DOCS_TOKEN` environment variable.
+This token is required for:
+- Building `cupertino-rel` (Makefile only builds it when token is set)
+- Uploading databases to cupertino-docs
+- GitHub API operations
+
+```bash
+# Add to your ~/.zshrc or ~/.bashrc
+export CUPERTINO_DOCS_TOKEN="your-github-token-here"
+
+# Or set for current session
+export CUPERTINO_DOCS_TOKEN="github_pat_..."
+```
+
+The token needs these scopes for `mihaelamj/cupertino-docs`:
+- Contents (read/write)
+- Metadata (read)
 
 ---
 
@@ -21,12 +44,15 @@ This guide covers the complete release process for Cupertino.
 Use `cupertino-rel` for automated releases:
 
 ```bash
+# Ensure token is set (required for building cupertino-rel)
+export CUPERTINO_DOCS_TOKEN="your-token"
+
 # Build the release tool
 cd Packages
 swift build --product cupertino-rel
 
 # Full release (bumps version, tags, waits for CI, uploads databases, updates Homebrew)
-.build/debug/cupertino-rel 0.5.0
+.build/debug/cupertino-rel 0.6.0
 
 # Or use bump types
 .build/debug/cupertino-rel patch  # 0.4.0 → 0.4.1
@@ -48,8 +74,7 @@ cupertino-rel bump 0.5.0
 # Create and push git tag
 cupertino-rel tag --push
 
-# Upload databases to cupertino-docs
-export GITHUB_TOKEN="your-cupertino-docs-token"
+# Upload databases to cupertino-docs (uses CUPERTINO_DOCS_TOKEN from env)
 cupertino-rel databases
 
 # Update Homebrew formula
@@ -117,11 +142,11 @@ git push origin vX.Y.Z
 # 4. Wait for GitHub Actions to build the CLI release binary
 # (creates cupertino-vX.Y.Z-macos-universal.tar.gz)
 
-# 5. Build locally and install
+# 5. Build locally and install (ensure CUPERTINO_DOCS_TOKEN is set to build cupertino-rel)
+export CUPERTINO_DOCS_TOKEN="your-token"
 make build && sudo make install
 
 # 6. Upload databases to cupertino-docs
-export GITHUB_TOKEN="your-cupertino-docs-token"
 cupertino-rel databases
 
 # 7. Update Homebrew tap
@@ -179,7 +204,7 @@ This triggers GitHub Actions which:
 ### Step 5: Upload Databases
 
 ```bash
-export GITHUB_TOKEN="your-cupertino-docs-token"
+# Uses CUPERTINO_DOCS_TOKEN from environment
 cupertino-rel databases
 ```
 
@@ -259,10 +284,21 @@ Check the [Actions tab](https://github.com/mihaelamj/cupertino/actions) for logs
 
 ### databases: Not Found
 
-Wrong token. Use the token for `cupertino-docs` repo, not `cupertino`:
+Token not set or wrong token. Set `CUPERTINO_DOCS_TOKEN` with a token that has access to `cupertino-docs` repo:
 
 ```bash
-export GITHUB_TOKEN="cupertino-docs-token-here"
+export CUPERTINO_DOCS_TOKEN="your-token-here"
+```
+
+### cupertino-rel Shows Wrong Version
+
+The Makefile only builds `cupertino-rel` when `CUPERTINO_DOCS_TOKEN` is set. If you ran `make build` without the token, an old version remains installed.
+
+```bash
+# Fix: rebuild with token set
+export CUPERTINO_DOCS_TOKEN="your-token"
+make build && sudo make install
+cupertino-rel --version  # Should match Constants.swift
 ```
 
 ### Homebrew Shows Old Version
