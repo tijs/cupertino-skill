@@ -106,6 +106,33 @@ open ~/.cupertino/docs/swiftui/view/index.md
 cupertino fetch --type docs --output-dir ./my-apple-docs
 ```
 
+## Availability Data
+
+After running `cupertino fetch --type availability`, JSON files are updated with platform availability:
+
+```json
+{
+  "title": "View",
+  "url": "...",
+  "availability": [
+    {"name": "iOS", "introducedAt": "13.0", "deprecated": false, "beta": false},
+    {"name": "macOS", "introducedAt": "10.15", "deprecated": false, "beta": false}
+  ]
+}
+```
+
+This enables:
+- Filtering search results by minimum OS version
+- Identifying deprecated APIs
+- Tracking platform support
+
+**Recommended workflow:**
+```bash
+cupertino fetch --type docs         # Fetch documentation
+cupertino fetch --type availability # Add availability data
+cupertino save                       # Build search index
+```
+
 ## Notes
 
 - Framework folders match URL structure

@@ -3,6 +3,11 @@ import Foundation
 import Resources
 import Shared
 
+// swiftlint:disable type_body_length function_body_length
+// Justification: PackageCuratorApp is a self-contained CLI tool for curating Swift packages.
+// The main() function orchestrates a complex multi-stage workflow that is clearer as a single flow.
+// Splitting would fragment the workflow logic without meaningful improvement.
+
 @main
 struct PackageCuratorApp {
     @MainActor

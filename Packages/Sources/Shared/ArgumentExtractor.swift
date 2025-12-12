@@ -98,4 +98,39 @@ public struct ArgumentExtractor: Sendable {
     ) -> Bool {
         optional(key, default: false)
     }
+
+    /// Extract min_ios version filter
+    public func minIOS(
+        key: String = Shared.Constants.MCP.schemaParamMinIOS
+    ) -> String? {
+        optional(key)
+    }
+
+    /// Extract min_macos version filter
+    public func minMacOS(
+        key: String = Shared.Constants.MCP.schemaParamMinMacOS
+    ) -> String? {
+        optional(key)
+    }
+
+    /// Extract min_tvos version filter
+    public func minTvOS(
+        key: String = Shared.Constants.MCP.schemaParamMinTvOS
+    ) -> String? {
+        optional(key)
+    }
+
+    /// Extract min_watchos version filter
+    public func minWatchOS(
+        key: String = Shared.Constants.MCP.schemaParamMinWatchOS
+    ) -> String? {
+        optional(key)
+    }
+
+    /// Extract min_visionos version filter
+    public func minVisionOS(
+        key: String = Shared.Constants.MCP.schemaParamMinVisionOS
+    ) -> String? {
+        optional(key)
+    }
 }

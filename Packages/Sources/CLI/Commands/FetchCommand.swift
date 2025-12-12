@@ -1,10 +1,16 @@
 import ArgumentParser
+import Availability
 import Core
 import Foundation
 import Logging
 import Shared
 
 // MARK: - Fetch Command
+
+// swiftlint:disable type_body_length
+// Justification: FetchCommand handles 10+ different fetch types (docs, evolution, packages, code, etc.)
+// Each type has distinct configuration, progress reporting, and error handling.
+// Splitting into separate commands would duplicate shared options and break the unified fetch interface.
 
 @available(macOS 10.15, macCatalyst 13, iOS 13, tvOS 13, watchOS 6, *)
 struct FetchCommand: AsyncParsableCommand {
@@ -23,6 +29,7 @@ struct FetchCommand: AsyncParsableCommand {
         package-docs (Swift package READMEs), code (Sample code from Apple), \
         samples (Sample code from GitHub - recommended), \
         archive (Apple Archive guides), hig (Human Interface Guidelines), \
+        availability (API version info for existing docs), \
         all (all types in parallel)
         """
     )
@@ -67,6 +74,9 @@ struct FetchCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Use Apple's JSON API instead of WKWebView (faster, no memory issues)")
     var useJsonApi: Bool = false
 
+    @Flag(name: .long, help: "Use fast mode (higher concurrency, shorter timeout) for availability fetch")
+    var fast: Bool = false
+
     mutating func run() async throws {
         logStartMessage()
 
@@ -103,6 +113,11 @@ struct FetchCommand: AsyncParsableCommand {
 
         if type == .hig {
             try await runHIGCrawl()
+            return
+        }
+
+        if type == .availability {
+            try await runAvailabilityFetch()
             return
         }
 
@@ -578,5 +593,58 @@ struct FetchCommand: AsyncParsableCommand {
 
         // Otherwise use the curated list of essential archive guides with framework info
         return ArchiveGuideCatalog.essentialGuidesWithInfo
+    }
+
+    private func runAvailabilityFetch() async throws {
+        let docsDir = outputDir.map { URL(fileURLWithPath: $0) }
+            ?? Shared.Constants.defaultDocsDirectory
+
+        guard FileManager.default.fileExists(atPath: docsDir.path) else {
+            Logging.ConsoleLogger.error("❌ Documentation directory not found: \(docsDir.path)")
+            Logging.ConsoleLogger.info("   Run 'cupertino fetch --type docs' first to download documentation.")
+            throw ExitCode.failure
+        }
+
+        Logging.ConsoleLogger.info("📊 Fetching API availability data...")
+        Logging.ConsoleLogger.info("   Source: \(docsDir.path)")
+        Logging.ConsoleLogger.info("   API: developer.apple.com/tutorials/data/documentation\n")
+
+        let configuration: AvailabilityFetcher.Configuration
+        if fast {
+            configuration = .fast
+        } else {
+            configuration = AvailabilityFetcher.Configuration(
+                concurrency: 50,
+                timeout: 1.0,
+                skipExisting: !force
+            )
+        }
+
+        let fetcher = AvailabilityFetcher(
+            docsDirectory: docsDir,
+            configuration: configuration
+        )
+
+        let stats = try await fetcher.fetch { progress in
+            let percent = String(format: "%.1f", progress.percentage)
+            let successRate = progress.completed > 0
+                ? String(format: "%.0f", Double(progress.successful) / Double(progress.completed) * 100)
+                : "0"
+            Logging.ConsoleLogger.output(
+                "   Progress: \(percent)% [\(progress.currentFramework)] \(successRate)% success"
+            )
+        }
+
+        Logging.ConsoleLogger.output("")
+        Logging.ConsoleLogger.info("✅ Availability fetch completed!")
+        Logging.ConsoleLogger.info("   Documents scanned: \(stats.totalDocuments)")
+        Logging.ConsoleLogger.info("   Updated: \(stats.updatedDocuments)")
+        Logging.ConsoleLogger.info("   Skipped: \(stats.skippedDocuments)")
+        Logging.ConsoleLogger.info("   Failed: \(stats.failedFetches)")
+        Logging.ConsoleLogger.info("   Frameworks: \(stats.frameworksProcessed)")
+        Logging.ConsoleLogger.info("   Success rate: \(String(format: "%.1f", stats.successRate))%")
+        if let duration = stats.duration {
+            Logging.ConsoleLogger.info("   Duration: \(Int(duration))s")
+        }
     }
 }

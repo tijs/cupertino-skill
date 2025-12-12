@@ -34,6 +34,21 @@ public struct MarkdownSearchResultFormatter: ResultFormatter {
             if let language = filters.language {
                 md += "_Filtered to language: **\(language)**_\n\n"
             }
+            if let minimumiOS = filters.minimumiOS {
+                md += "_Filtered to iOS: **\(minimumiOS)+**_\n\n"
+            }
+            if let minimumMacOS = filters.minimumMacOS {
+                md += "_Filtered to macOS: **\(minimumMacOS)+**_\n\n"
+            }
+            if let minimumTvOS = filters.minimumTvOS {
+                md += "_Filtered to tvOS: **\(minimumTvOS)+**_\n\n"
+            }
+            if let minimumWatchOS = filters.minimumWatchOS {
+                md += "_Filtered to watchOS: **\(minimumWatchOS)+**_\n\n"
+            }
+            if let minimumVisionOS = filters.minimumVisionOS {
+                md += "_Filtered to visionOS: **\(minimumVisionOS)+**_\n\n"
+            }
         }
 
         md += "Found **\(results.count)** result\(results.count == 1 ? "" : "s"):\n\n"

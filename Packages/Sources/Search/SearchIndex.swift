@@ -4,15 +4,12 @@ import SQLite3
 
 // MARK: - Search Index
 
-// swiftlint:disable type_body_length function_body_length function_parameter_count
+// swiftlint:disable type_body_length function_body_length function_parameter_count file_length
 // Justification: This actor implements a complete SQLite FTS5 full-text search engine.
 // It manages: database initialization, schema creation, document indexing with metadata,
 // search query processing, statistics aggregation, and transaction management. The functions
 // require multiple parameters to properly index documents with all metadata (id, title,
 // framework, url, type, summary, content). Splitting would separate tightly-coupled SQL operations.
-// File length: 421 lines | Type body length: 319 lines | Function body length: 66 lines | Parameters: 7
-// Disabling: file_length (400 line limit), type_body_length (250 line limit),
-//            function_body_length (50 line limit for SQL operations),
 //            function_parameter_count (5 param limit, need 7 for complete document metadata)
 
 /// SQLite FTS5-based full-text search index for documentation
@@ -25,7 +22,8 @@ extension Search {
         /// - 3: Added json_data column to docs_metadata for full JSON storage
         /// - 4: Added source field to docs_fts and docs_metadata for source-based filtering
         /// - 5: Added language field to docs_fts and docs_metadata (BREAKING: requires database rebuild)
-        public static let schemaVersion: Int32 = 5
+        /// - 6: Added availability columns (min_ios, min_macos, etc.) for efficient filtering
+        public static let schemaVersion: Int32 = 7
 
         private var database: OpaquePointer?
         private let dbPath: URL
@@ -150,6 +148,80 @@ extension Search {
                         "rm ~/.cupertino/search.db && cupertino save"
                 )
             }
+
+            if currentVersion < 6 {
+                // Version 5 -> 6: Added availability columns to docs_metadata
+                try await migrateToVersion6()
+            }
+
+            if currentVersion < 7 {
+                // Version 6 -> 7: Added availability columns to sample_code_metadata
+                try await migrateToVersion7()
+            }
+        }
+
+        private func migrateToVersion7() async throws {
+            guard let database else {
+                throw SearchError.databaseNotInitialized
+            }
+
+            // Add availability columns to sample_code_metadata
+            let columns = [
+                "ALTER TABLE sample_code_metadata ADD COLUMN min_ios TEXT;",
+                "ALTER TABLE sample_code_metadata ADD COLUMN min_macos TEXT;",
+                "ALTER TABLE sample_code_metadata ADD COLUMN min_tvos TEXT;",
+                "ALTER TABLE sample_code_metadata ADD COLUMN min_watchos TEXT;",
+                "ALTER TABLE sample_code_metadata ADD COLUMN min_visionos TEXT;",
+            ]
+
+            var errorPointer: UnsafeMutablePointer<CChar>?
+
+            for sql in columns {
+                sqlite3_free(errorPointer)
+                errorPointer = nil
+                _ = sqlite3_exec(database, sql, nil, nil, &errorPointer)
+            }
+
+            sqlite3_free(errorPointer)
+        }
+
+        private func migrateToVersion6() async throws {
+            guard let database else {
+                throw SearchError.databaseNotInitialized
+            }
+
+            // Add availability columns - these can be added with ALTER TABLE
+            let columns = [
+                "ALTER TABLE docs_metadata ADD COLUMN min_ios TEXT;",
+                "ALTER TABLE docs_metadata ADD COLUMN min_macos TEXT;",
+                "ALTER TABLE docs_metadata ADD COLUMN min_tvos TEXT;",
+                "ALTER TABLE docs_metadata ADD COLUMN min_watchos TEXT;",
+                "ALTER TABLE docs_metadata ADD COLUMN min_visionos TEXT;",
+                "ALTER TABLE docs_metadata ADD COLUMN availability_source TEXT;",
+            ]
+
+            var errorPointer: UnsafeMutablePointer<CChar>?
+
+            for sql in columns {
+                // This will fail silently if column already exists
+                sqlite3_free(errorPointer)
+                errorPointer = nil
+                _ = sqlite3_exec(database, sql, nil, nil, &errorPointer)
+            }
+
+            sqlite3_free(errorPointer)
+
+            // Create indexes for efficient filtering
+            let indexes = [
+                "CREATE INDEX IF NOT EXISTS idx_min_ios ON docs_metadata(min_ios);",
+                "CREATE INDEX IF NOT EXISTS idx_min_macos ON docs_metadata(min_macos);",
+            ]
+
+            for sql in indexes {
+                errorPointer = nil
+                _ = sqlite3_exec(database, sql, nil, nil, &errorPointer)
+                sqlite3_free(errorPointer)
+            }
         }
 
         private func migrateToVersion4() async throws {
@@ -216,6 +288,13 @@ extension Search {
                 source_type TEXT DEFAULT 'apple',
                 package_id INTEGER,
                 json_data TEXT,
+                -- Availability columns for efficient filtering (no JSON parsing needed)
+                min_ios TEXT,           -- e.g., "13.0"
+                min_macos TEXT,         -- e.g., "10.15"
+                min_tvos TEXT,
+                min_watchos TEXT,
+                min_visionos TEXT,
+                availability_source TEXT, -- 'api', 'parsed', 'inherited', 'derived'
                 FOREIGN KEY (package_id) REFERENCES packages(id)
             );
 
@@ -223,6 +302,8 @@ extension Search {
             CREATE INDEX IF NOT EXISTS idx_framework ON docs_metadata(framework);
             CREATE INDEX IF NOT EXISTS idx_language ON docs_metadata(language);
             CREATE INDEX IF NOT EXISTS idx_source_type ON docs_metadata(source_type);
+            CREATE INDEX IF NOT EXISTS idx_min_ios ON docs_metadata(min_ios);
+            CREATE INDEX IF NOT EXISTS idx_min_macos ON docs_metadata(min_macos);
 
             -- Structured documentation fields (extracted from JSON for querying)
             CREATE TABLE IF NOT EXISTS docs_structured (
@@ -299,10 +380,18 @@ extension Search {
                 framework TEXT NOT NULL,
                 zip_filename TEXT NOT NULL,
                 web_url TEXT NOT NULL,
-                last_indexed INTEGER
+                last_indexed INTEGER,
+                -- Availability columns (derived from framework)
+                min_ios TEXT,
+                min_macos TEXT,
+                min_tvos TEXT,
+                min_watchos TEXT,
+                min_visionos TEXT
             );
 
             CREATE INDEX IF NOT EXISTS idx_sample_framework ON sample_code_metadata(framework);
+            CREATE INDEX IF NOT EXISTS idx_sample_min_ios ON sample_code_metadata(min_ios);
+            CREATE INDEX IF NOT EXISTS idx_sample_min_macos ON sample_code_metadata(min_macos);
 
             -- Code examples embedded in documentation pages
             CREATE TABLE IF NOT EXISTS doc_code_examples (
@@ -395,14 +484,19 @@ extension Search {
 
         // MARK: - Sample Code Indexing
 
-        /// Index a sample code entry
+        /// Index a sample code entry with optional availability
         public func indexSampleCode(
             url: String,
             framework: String,
             title: String,
             description: String,
             zipFilename: String,
-            webURL: String
+            webURL: String,
+            minIOS: String? = nil,
+            minMacOS: String? = nil,
+            minTvOS: String? = nil,
+            minWatchOS: String? = nil,
+            minVisionOS: String? = nil
         ) async throws {
             guard let database else {
                 throw SearchError.databaseNotInitialized
@@ -432,11 +526,11 @@ extension Search {
                 throw SearchError.insertFailed("Sample code FTS insert: \(errorMessage)")
             }
 
-            // Insert metadata
+            // Insert metadata with availability
             let metaSql = """
             INSERT OR REPLACE INTO sample_code_metadata
-            (url, framework, zip_filename, web_url, last_indexed)
-            VALUES (?, ?, ?, ?, ?);
+            (url, framework, zip_filename, web_url, last_indexed, min_ios, min_macos, min_tvos, min_watchos, min_visionos)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """
 
             var metaStatement: OpaquePointer?
@@ -452,11 +546,58 @@ extension Search {
             sqlite3_bind_text(metaStatement, 3, (zipFilename as NSString).utf8String, -1, nil)
             sqlite3_bind_text(metaStatement, 4, (webURL as NSString).utf8String, -1, nil)
             sqlite3_bind_int64(metaStatement, 5, Int64(Date().timeIntervalSince1970))
+            bindOptionalText(metaStatement, 6, minIOS)
+            bindOptionalText(metaStatement, 7, minMacOS)
+            bindOptionalText(metaStatement, 8, minTvOS)
+            bindOptionalText(metaStatement, 9, minWatchOS)
+            bindOptionalText(metaStatement, 10, minVisionOS)
 
             guard sqlite3_step(metaStatement) == SQLITE_DONE else {
                 let errorMessage = String(cString: sqlite3_errmsg(database))
                 throw SearchError.insertFailed("Sample code metadata insert: \(errorMessage)")
             }
+        }
+
+        /// Look up availability for a framework from indexed docs
+        public func getFrameworkAvailability(framework: String) async -> FrameworkAvailability {
+            guard let database else {
+                return .empty
+            }
+
+            // Query the framework root document for availability
+            let sql = """
+            SELECT min_ios, min_macos, min_tvos, min_watchos, min_visionos
+            FROM docs_metadata
+            WHERE framework = ? AND min_ios IS NOT NULL
+            LIMIT 1;
+            """
+
+            var statement: OpaquePointer?
+            defer { sqlite3_finalize(statement) }
+
+            guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK else {
+                return .empty
+            }
+
+            sqlite3_bind_text(statement, 1, (framework.lowercased() as NSString).utf8String, -1, nil)
+
+            guard sqlite3_step(statement) == SQLITE_ROW else {
+                return .empty
+            }
+
+            let minIOS = sqlite3_column_text(statement, 0).map { String(cString: $0) }
+            let minMacOS = sqlite3_column_text(statement, 1).map { String(cString: $0) }
+            let minTvOS = sqlite3_column_text(statement, 2).map { String(cString: $0) }
+            let minWatchOS = sqlite3_column_text(statement, 3).map { String(cString: $0) }
+            let minVisionOS = sqlite3_column_text(statement, 4).map { String(cString: $0) }
+
+            return FrameworkAvailability(
+                minIOS: minIOS,
+                minMacOS: minMacOS,
+                minTvOS: minTvOS,
+                minWatchOS: minWatchOS,
+                minVisionOS: minVisionOS
+            )
         }
 
         // MARK: - Doc Code Examples Indexing
@@ -701,7 +842,13 @@ extension Search {
             lastCrawled: Date,
             sourceType: String = "apple",
             packageId: Int? = nil,
-            jsonData: String? = nil
+            jsonData: String? = nil,
+            minIOS: String? = nil,
+            minMacOS: String? = nil,
+            minTvOS: String? = nil,
+            minWatchOS: String? = nil,
+            minVisionOS: String? = nil,
+            availabilitySource: String? = nil
         ) async throws {
             guard let database else {
                 throw SearchError.databaseNotInitialized
@@ -758,9 +905,13 @@ extension Search {
                 finalJsonData = minimalJSON
             }
 
-            // Insert metadata with JSON data
-            // swiftlint:disable:next line_length
-            let metaSql = "INSERT OR REPLACE INTO docs_metadata (uri, source, framework, language, file_path, content_hash, last_crawled, word_count, source_type, package_id, json_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
+            // Insert metadata with JSON data and availability
+            let metaSql = """
+            INSERT OR REPLACE INTO docs_metadata
+            (uri, source, framework, language, file_path, content_hash, last_crawled, word_count, source_type, package_id, json_data,
+             min_ios, min_macos, min_tvos, min_watchos, min_visionos, availability_source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """
 
             var metaStatement: OpaquePointer?
             defer { sqlite3_finalize(metaStatement) }
@@ -787,6 +938,14 @@ extension Search {
             }
 
             sqlite3_bind_text(metaStatement, 11, (finalJsonData as NSString).utf8String, -1, nil)
+
+            // Bind availability columns
+            bindOptionalText(metaStatement, 12, minIOS)
+            bindOptionalText(metaStatement, 13, minMacOS)
+            bindOptionalText(metaStatement, 14, minTvOS)
+            bindOptionalText(metaStatement, 15, minWatchOS)
+            bindOptionalText(metaStatement, 16, minVisionOS)
+            bindOptionalText(metaStatement, 17, availabilitySource)
 
             guard sqlite3_step(metaStatement) == SQLITE_DONE else {
                 let errorMessage = String(cString: sqlite3_errmsg(database))
@@ -866,7 +1025,13 @@ extension Search {
             source: String,
             framework: String,
             page: StructuredDocumentationPage,
-            jsonData: String
+            jsonData: String,
+            overrideMinIOS: String? = nil,
+            overrideMinMacOS: String? = nil,
+            overrideMinTvOS: String? = nil,
+            overrideMinWatchOS: String? = nil,
+            overrideMinVisionOS: String? = nil,
+            overrideAvailabilitySource: String? = nil
         ) async throws {
             // Register framework alias if module is available
             if let module = page.module, !module.isEmpty {
@@ -913,11 +1078,21 @@ extension Search {
                 throw SearchError.insertFailed("FTS insert: \(errorMessage)")
             }
 
-            // Insert metadata with json_data
+            // Extract availability from JSON data, with optional overrides
+            let jsonAvailability = extractAvailabilityFromJSON(jsonData)
+            let finalIOS = overrideMinIOS ?? jsonAvailability.iOS
+            let finalMacOS = overrideMinMacOS ?? jsonAvailability.macOS
+            let finalTvOS = overrideMinTvOS ?? jsonAvailability.tvOS
+            let finalWatchOS = overrideMinWatchOS ?? jsonAvailability.watchOS
+            let finalVisionOS = overrideMinVisionOS ?? jsonAvailability.visionOS
+            let finalSource = overrideAvailabilitySource ?? jsonAvailability.source
+
+            // Insert metadata with json_data and availability columns
             let metaSql = """
             INSERT OR REPLACE INTO docs_metadata
-            (uri, source, framework, language, file_path, content_hash, last_crawled, word_count, source_type, json_data)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            (uri, source, framework, language, file_path, content_hash, last_crawled, word_count, source_type, json_data,
+             min_ios, min_macos, min_tvos, min_watchos, min_visionos, availability_source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """
 
             var metaStatement: OpaquePointer?
@@ -938,6 +1113,14 @@ extension Search {
             sqlite3_bind_int(metaStatement, 8, Int32(wordCount))
             sqlite3_bind_text(metaStatement, 9, (page.source.rawValue as NSString).utf8String, -1, nil)
             sqlite3_bind_text(metaStatement, 10, (jsonData as NSString).utf8String, -1, nil)
+
+            // Bind availability columns (use final values with overrides)
+            bindOptionalText(metaStatement, 11, finalIOS)
+            bindOptionalText(metaStatement, 12, finalMacOS)
+            bindOptionalText(metaStatement, 13, finalTvOS)
+            bindOptionalText(metaStatement, 14, finalWatchOS)
+            bindOptionalText(metaStatement, 15, finalVisionOS)
+            bindOptionalText(metaStatement, 16, finalSource)
 
             guard sqlite3_step(metaStatement) == SQLITE_DONE else {
                 let errorMessage = String(cString: sqlite3_errmsg(database))
@@ -1576,7 +1759,12 @@ extension Search {
                 m.file_path,
                 m.word_count,
                 bm25(docs_fts) as rank,
-                COALESCE(s.kind, 'unknown') as kind
+                COALESCE(s.kind, 'unknown') as kind,
+                m.min_ios,
+                m.min_macos,
+                m.min_tvos,
+                m.min_watchos,
+                m.min_visionos
             FROM docs_fts f
             JOIN docs_metadata m ON f.uri = m.uri
             LEFT JOIN docs_structured s ON f.uri = s.uri
@@ -1629,7 +1817,9 @@ extension Search {
             sqlite3_bind_int(statement, paramIndex, Int32(fetchLimit))
 
             // Execute and collect results
-            // Column order: uri(0), source(1), framework(2), title(3), summary(4), file_path(5), word_count(6), rank(7), kind(8)
+            // Column order: uri(0), source(1), framework(2), title(3), summary(4), file_path(5),
+            //               word_count(6), rank(7), kind(8), min_ios(9), min_macos(10),
+            //               min_tvos(11), min_watchos(12), min_visionos(13)
             var results: [Search.Result] = []
 
             while sqlite3_step(statement) == SQLITE_ROW {
@@ -1652,6 +1842,62 @@ extension Search {
                 let filePath = String(cString: filePathPtr)
                 let wordCount = Int(sqlite3_column_int(statement, 6))
                 let bm25Rank = sqlite3_column_double(statement, 7)
+
+                // Read availability from dedicated columns (no JSON parsing needed)
+                let miniOSPtr = sqlite3_column_text(statement, 9)
+                let minMacOSPtr = sqlite3_column_text(statement, 10)
+                let minTvOSPtr = sqlite3_column_text(statement, 11)
+                let minWatchOSPtr = sqlite3_column_text(statement, 12)
+                let minVisionOSPtr = sqlite3_column_text(statement, 13)
+
+                // Build availability array from columns
+                var availabilityItems: [SearchPlatformAvailability] = []
+                if let ptr = miniOSPtr {
+                    availabilityItems.append(SearchPlatformAvailability(
+                        name: "iOS",
+                        introducedAt: String(cString: ptr),
+                        deprecated: false,
+                        unavailable: false,
+                        beta: false
+                    ))
+                }
+                if let ptr = minMacOSPtr {
+                    availabilityItems.append(SearchPlatformAvailability(
+                        name: "macOS",
+                        introducedAt: String(cString: ptr),
+                        deprecated: false,
+                        unavailable: false,
+                        beta: false
+                    ))
+                }
+                if let ptr = minTvOSPtr {
+                    availabilityItems.append(SearchPlatformAvailability(
+                        name: "tvOS",
+                        introducedAt: String(cString: ptr),
+                        deprecated: false,
+                        unavailable: false,
+                        beta: false
+                    ))
+                }
+                if let ptr = minWatchOSPtr {
+                    availabilityItems.append(SearchPlatformAvailability(
+                        name: "watchOS",
+                        introducedAt: String(cString: ptr),
+                        deprecated: false,
+                        unavailable: false,
+                        beta: false
+                    ))
+                }
+                if let ptr = minVisionOSPtr {
+                    availabilityItems.append(SearchPlatformAvailability(
+                        name: "visionOS",
+                        introducedAt: String(cString: ptr),
+                        deprecated: false,
+                        unavailable: false,
+                        beta: false
+                    ))
+                }
+                let availability: [SearchPlatformAvailability]? = availabilityItems.isEmpty ? nil : availabilityItems
                 let rawKind = String(cString: kindPtr)
 
                 // Infer kind when unknown using multiple signals
@@ -1856,7 +2102,8 @@ extension Search {
                         summary: summary,
                         filePath: filePath,
                         wordCount: wordCount,
-                        rank: adjustedRank
+                        rank: adjustedRank,
+                        availability: availability
                     )
                 )
             }
@@ -2369,6 +2616,88 @@ extension Search {
 
             // Default to Swift (most Apple docs are Swift)
             return "swift"
+        }
+
+        // MARK: - Availability Extraction
+
+        /// Extracted availability data from JSON
+        private struct ExtractedAvailability {
+            var iOS: String?
+            var macOS: String?
+            var tvOS: String?
+            var watchOS: String?
+            var visionOS: String?
+            var source: String? // 'api', 'parsed', 'inherited', 'derived'
+        }
+
+        /// Extract availability from JSON string
+        private func extractAvailabilityFromJSON(_ jsonString: String) -> ExtractedAvailability {
+            var result = ExtractedAvailability()
+
+            let data = Data(jsonString.utf8)
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let availabilityArray = json["availability"] as? [[String: Any]]
+            else {
+                return result
+            }
+
+            // If availability array is empty, no availability data
+            guard !availabilityArray.isEmpty else {
+                return result
+            }
+
+            // Determine source based on presence of availability
+            result.source = "api" // Default - could be enhanced to detect 'inherited', 'derived'
+
+            for platform in availabilityArray {
+                guard let name = platform["name"] as? String,
+                      let introducedAt = platform["introducedAt"] as? String,
+                      platform["unavailable"] as? Bool != true
+                else { continue }
+
+                switch name.lowercased() {
+                case "ios", "ipados":
+                    if result.iOS == nil || isVersionGreater(introducedAt, than: result.iOS!) {
+                        result.iOS = introducedAt
+                    }
+                case "macos":
+                    result.macOS = introducedAt
+                case "tvos":
+                    result.tvOS = introducedAt
+                case "watchos":
+                    result.watchOS = introducedAt
+                case "visionos":
+                    result.visionOS = introducedAt
+                default:
+                    break
+                }
+            }
+
+            return result
+        }
+
+        /// Compare version strings - returns true if lhs > rhs
+        private func isVersionGreater(_ lhs: String, than rhs: String) -> Bool {
+            let lhsComponents = lhs.split(separator: ".").compactMap { Int($0) }
+            let rhsComponents = rhs.split(separator: ".").compactMap { Int($0) }
+
+            for idx in 0..<max(lhsComponents.count, rhsComponents.count) {
+                let lhsValue = idx < lhsComponents.count ? lhsComponents[idx] : 0
+                let rhsValue = idx < rhsComponents.count ? rhsComponents[idx] : 0
+
+                if lhsValue > rhsValue { return true }
+                if lhsValue < rhsValue { return false }
+            }
+            return false
+        }
+
+        /// Helper to bind optional text to SQLite statement
+        private func bindOptionalText(_ statement: OpaquePointer?, _ index: Int32, _ value: String?) {
+            if let value {
+                sqlite3_bind_text(statement, index, (value as NSString).utf8String, -1, nil)
+            } else {
+                sqlite3_bind_null(statement, index)
+            }
         }
 
         private func extractSummary(

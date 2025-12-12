@@ -120,6 +120,16 @@ struct SaveCommand: AsyncParsableCommand {
             Logging.ConsoleLogger.info("   Run 'cupertino fetch --type hig' to download HIG documentation")
         }
 
+        // Check if docs have availability data
+        let hasAvailability = checkDocsHaveAvailability(docsDir: docsURL)
+        if !hasAvailability {
+            Logging.ConsoleLogger.info("")
+            Logging.ConsoleLogger.info("⚠️  Docs don't have availability data yet")
+            Logging.ConsoleLogger.info("   Run 'cupertino fetch --type availability' first for best results")
+            Logging.ConsoleLogger.info("   (sample-code and archive derive availability from docs)")
+            Logging.ConsoleLogger.info("")
+        }
+
         // Build index (no metadata needed - just scans directories)
         let builder = Search.IndexBuilder(
             searchIndex: searchIndex,
@@ -307,5 +317,56 @@ struct SaveCommand: AsyncParsableCommand {
         } else {
             return String(format: "%02d:%02d", minutes, seconds)
         }
+    }
+
+    /// Check if docs directory has availability data by sampling a few JSON files
+    private func checkDocsHaveAvailability(docsDir: URL) -> Bool {
+        guard FileManager.default.fileExists(atPath: docsDir.path) else {
+            return false
+        }
+
+        // Sample a few framework directories
+        guard let frameworks = try? FileManager.default.contentsOfDirectory(
+            at: docsDir,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ) else {
+            return false
+        }
+
+        // Check first 3 frameworks for availability
+        var checkedCount = 0
+        var hasAvailabilityCount = 0
+
+        for frameworkDir in frameworks.prefix(5) {
+            guard frameworkDir.hasDirectoryPath else { continue }
+
+            // Find first JSON file in framework
+            if let files = try? FileManager.default.contentsOfDirectory(
+                at: frameworkDir,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            ) {
+                for file in files where file.pathExtension == "json" {
+                    checkedCount += 1
+
+                    // Check if file has availability key
+                    if let data = try? Data(contentsOf: file),
+                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       json["availability"] != nil {
+                        hasAvailabilityCount += 1
+                    }
+
+                    break // Only check one file per framework
+                }
+            }
+
+            if checkedCount >= 3 {
+                break
+            }
+        }
+
+        // Consider "has availability" if at least 2 out of 3 sampled files have it
+        return checkedCount > 0 && hasAvailabilityCount >= (checkedCount / 2)
     }
 }

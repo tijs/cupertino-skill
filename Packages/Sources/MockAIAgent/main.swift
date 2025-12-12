@@ -3,6 +3,11 @@ import MCP
 
 // MARK: - Mock AI Agent
 
+// swiftlint:disable type_body_length
+// Justification: MCPClient actor implements a complete MCP client for testing.
+// It handles: process management, JSON-RPC communication, request/response formatting, and demo flows.
+// The actor maintains state across multiple async operations for the test session.
+
 /// A mock AI agent that demonstrates how to send MCP requests to an MCP server
 /// This helps visualize the complete MCP request/response cycle with full JSON logging
 

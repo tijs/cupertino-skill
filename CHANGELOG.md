@@ -1,3 +1,35 @@
+## 0.6.0 (2025-12-12)
+
+### Added
+- **Platform Availability Support** (#99)
+  - `cupertino fetch --type availability` - Fetch platform version data for all docs
+  - Availability tracked for all sources: apple-docs, sample-code, archive, swift-evolution, swift-book, hig
+  - Search filtering by `--min-ios`, `--min-macos`, `--min-tvos`, `--min-watchos`, `--min-visionos` (CLI and MCP `search_docs` tool)
+  - `save` command now warns if docs don't have availability data
+  - Schema v7: availability columns in docs_metadata and sample_code_metadata
+
+### Availability Sources
+| Source | Strategy |
+|--------|----------|
+| apple-docs | API fetch + fallbacks |
+| sample-code | Derives from framework |
+| apple-archive | Derives from framework |
+| swift-evolution | Swift version mapping |
+| swift-book/hig | Universal (all platforms) |
+
+### Documentation
+- Added `docs/commands/search/option (--)/min-ios.md`
+- Added `docs/commands/search/option (--)/min-macos.md`
+- Added `docs/commands/search/option (--)/min-tvos.md`
+- Added `docs/commands/search/option (--)/min-watchos.md`
+- Added `docs/commands/search/option (--)/min-visionos.md`
+- Updated search command docs with availability filtering options
+
+### Related Issues
+- Closes #99
+
+---
+
 ## 0.5.0 (2025-12-11)
 
 **Why minor bump?** The `cupertino release` command was removed from the public CLI. Users who had scripts calling `cupertino release` will need to update them. This is a breaking change for maintainer workflows.

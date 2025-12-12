@@ -25,6 +25,7 @@ Specifies which documentation source to fetch. Each type targets a different dat
 | `samples` | Apple sample code (from GitHub, recommended) |
 | `archive` | Apple Archive legacy programming guides |
 | `hig` | Human Interface Guidelines |
+| `availability` | Platform availability data for docs |
 | `all` | All types in parallel |
 
 ## Default
@@ -60,6 +61,7 @@ cupertino fetch --type all
 - samples - Apple sample code (from GitHub)
 - [archive](type%20(=value)/archive.md) - Apple Archive legacy guides
 - [hig](type%20(=value)/hig.md) - Human Interface Guidelines
+- [availability](type%20(=value)/availability.md) - Platform availability data
 - [all](type%20(=value)/all.md) - All documentation types
 
 ## Notes

@@ -15,6 +15,7 @@ extension Cupertino {
         case samples
         case archive
         case hig
+        case availability
         case all
 
         var displayName: String {
@@ -28,6 +29,7 @@ extension Cupertino {
             case .samples: return "Sample Code (GitHub)"
             case .archive: return Shared.Constants.DisplayName.archive
             case .hig: return Shared.Constants.DisplayName.humanInterfaceGuidelines
+            case .availability: return "API Availability Data"
             case .all: return Shared.Constants.DisplayName.allDocs
             }
         }
@@ -43,6 +45,7 @@ extension Cupertino {
             case .samples: return "" // Git clone from GitHub
             case .archive: return Shared.Constants.BaseURL.appleArchive
             case .hig: return Shared.Constants.BaseURL.appleHIG
+            case .availability: return "" // Updates existing docs
             case .all: return "" // N/A - fetches all types sequentially
             }
         }
@@ -82,6 +85,8 @@ extension Cupertino {
                 return "\(homeDir)/\(baseDir)/\(Shared.Constants.Directory.archive)"
             case .hig:
                 return "\(homeDir)/\(baseDir)/\(Shared.Constants.Directory.hig)"
+            case .availability:
+                return "\(homeDir)/\(baseDir)/\(Shared.Constants.Directory.docs)"
             case .all:
                 return "\(homeDir)/\(baseDir)"
             }
@@ -92,7 +97,7 @@ extension Cupertino {
         }
 
         static var directFetchTypes: [FetchType] {
-            [.packages, .packageDocs, .code, .samples, .archive, .hig]
+            [.packages, .packageDocs, .code, .samples, .archive, .hig, .availability]
         }
 
         static var allTypes: [FetchType] {

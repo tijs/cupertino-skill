@@ -11,6 +11,7 @@ Full-text search across all indexed documentation.
     "query": "Actors Swift concurrency",
     "source": "apple-docs",
     "framework": "swift",
+    "min_ios": "13.0",
     "limit": 10
   }
 }
@@ -83,6 +84,36 @@ Filter results by programming language.
 - `"swift"` - Swift documentation
 - `"objc"` - Objective-C documentation
 
+### min_ios (optional)
+
+Filter to APIs available on the specified iOS version or earlier.
+
+**Type:** String
+
+**Default:** None (no version filtering)
+
+**Examples:**
+- `"13.0"` - APIs available on iOS 13.0+
+- `"15.0"` - APIs available on iOS 15.0+
+- `"17.0"` - APIs available on iOS 17.0+ (e.g., Observable, SwiftData)
+
+**Note:** Only returns documents that have availability data and were introduced at or before the specified version.
+
+### min_macos (optional)
+
+Filter to APIs available on the specified macOS version or earlier.
+
+**Type:** String
+
+**Default:** None (no version filtering)
+
+**Examples:**
+- `"10.15"` - APIs available on macOS Catalina+
+- `"12.0"` - APIs available on macOS Monterey+
+- `"14.0"` - APIs available on macOS Sonoma+
+
+**Note:** Only returns documents that have availability data and were introduced at or before the specified version.
+
 ### limit (optional)
 
 Maximum number of results to return.
@@ -118,6 +149,7 @@ Found **15** results:
 
 - **Framework:** `swift`
 - **URI:** `apple-docs://swift/documentation_swift_actor`
+- **Availability:** iOS 13.0+, macOS 10.15+
 - **Score:** 12.45
 - **Words:** 1,234
 
@@ -135,6 +167,7 @@ A type whose mutable state is protected from concurrent access...
 |-------|-------------|
 | Framework | The framework containing this document |
 | URI | Document identifier for use with `read_document` |
+| Availability | Platform versions (iOS, macOS, etc.) when available |
 | Score | BM25 relevance score (higher = more relevant) |
 | Words | Document word count |
 | Summary | Brief excerpt from the document |
@@ -201,6 +234,35 @@ A type whose mutable state is protected from concurrent access...
 {
   "query": "CALayer",
   "source": "apple-archive"
+}
+```
+
+### Filter by iOS Version
+
+```json
+{
+  "query": "Observable",
+  "min_ios": "17.0"
+}
+```
+
+### Filter by macOS Version
+
+```json
+{
+  "query": "SwiftData",
+  "min_macos": "14.0"
+}
+```
+
+### Combined Version Filter
+
+```json
+{
+  "query": "async await",
+  "framework": "swift",
+  "min_ios": "15.0",
+  "min_macos": "12.0"
 }
 ```
 

@@ -6,7 +6,7 @@ import WebKit
 
 // MARK: - HTML to Markdown Converter
 
-// swiftlint:disable type_body_length
+// swiftlint:disable type_body_length file_length
 // Justification: This file contains a comprehensive HTML-to-Markdown converter
 // with specialized handling for documentation pages. The conversion logic includes:
 // - Content extraction from various HTML structures (main, article, body)

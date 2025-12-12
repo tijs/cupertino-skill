@@ -1,6 +1,59 @@
 import Foundation
 import Shared
 
+// MARK: - Framework Availability (Search Module)
+
+/// Minimum platform versions for a framework (used for availability filtering)
+public struct FrameworkAvailability: Sendable {
+    public let minIOS: String?
+    public let minMacOS: String?
+    public let minTvOS: String?
+    public let minWatchOS: String?
+    public let minVisionOS: String?
+
+    public init(
+        minIOS: String? = nil,
+        minMacOS: String? = nil,
+        minTvOS: String? = nil,
+        minWatchOS: String? = nil,
+        minVisionOS: String? = nil
+    ) {
+        self.minIOS = minIOS
+        self.minMacOS = minMacOS
+        self.minTvOS = minTvOS
+        self.minWatchOS = minWatchOS
+        self.minVisionOS = minVisionOS
+    }
+
+    /// Empty availability (no platform data)
+    public static let empty = FrameworkAvailability()
+}
+
+// MARK: - Platform Availability (Search Module)
+
+/// Lightweight platform availability for search results
+public struct SearchPlatformAvailability: Codable, Sendable, Hashable {
+    public let name: String
+    public let introducedAt: String?
+    public let deprecated: Bool
+    public let unavailable: Bool
+    public let beta: Bool
+
+    public init(
+        name: String,
+        introducedAt: String? = nil,
+        deprecated: Bool = false,
+        unavailable: Bool = false,
+        beta: Bool = false
+    ) {
+        self.name = name
+        self.introducedAt = introducedAt
+        self.deprecated = deprecated
+        self.unavailable = unavailable
+        self.beta = beta
+    }
+}
+
 // MARK: - Search Result
 
 /// A single search result with metadata and ranking
@@ -15,6 +68,7 @@ extension Search {
         public let filePath: String
         public let wordCount: Int
         public let rank: Double // BM25 score (negative, closer to 0 = better match)
+        public let availability: [SearchPlatformAvailability]?
 
         public init(
             id: UUID = UUID(),
@@ -25,7 +79,8 @@ extension Search {
             summary: String,
             filePath: String,
             wordCount: Int,
-            rank: Double
+            rank: Double,
+            availability: [SearchPlatformAvailability]? = nil
         ) {
             self.id = id
             self.uri = uri
@@ -36,6 +91,51 @@ extension Search {
             self.filePath = filePath
             self.wordCount = wordCount
             self.rank = rank
+            self.availability = availability
+        }
+
+        /// Format availability as a compact string (e.g., "iOS 13.0+, macOS 10.15+")
+        public var availabilityString: String? {
+            guard let availability, !availability.isEmpty else { return nil }
+            return availability
+                .filter { !$0.unavailable }
+                .compactMap { platform -> String? in
+                    guard let version = platform.introducedAt else { return nil }
+                    var str = "\(platform.name) \(version)+"
+                    if platform.deprecated {
+                        str += " (deprecated)"
+                    }
+                    if platform.beta {
+                        str += " (beta)"
+                    }
+                    return str
+                }
+                .joined(separator: ", ")
+        }
+
+        /// Get minimum iOS version (nil if not available on iOS)
+        public var minimumiOS: String? {
+            availability?.first { $0.name == "iOS" && !$0.unavailable }?.introducedAt
+        }
+
+        /// Get minimum macOS version (nil if not available on macOS)
+        public var minimumMacOS: String? {
+            availability?.first { $0.name == "macOS" && !$0.unavailable }?.introducedAt
+        }
+
+        /// Get minimum tvOS version (nil if not available on tvOS)
+        public var minimumTvOS: String? {
+            availability?.first { $0.name == "tvOS" && !$0.unavailable }?.introducedAt
+        }
+
+        /// Get minimum watchOS version (nil if not available on watchOS)
+        public var minimumWatchOS: String? {
+            availability?.first { $0.name == "watchOS" && !$0.unavailable }?.introducedAt
+        }
+
+        /// Get minimum visionOS version (nil if not available on visionOS)
+        public var minimumVisionOS: String? {
+            availability?.first { $0.name == "visionOS" && !$0.unavailable }?.introducedAt
         }
 
         /// True if summary was truncated from full content (use read_document to get full content)
@@ -53,7 +153,8 @@ extension Search {
         // MARK: - Custom Codable (include computed properties)
 
         private enum CodingKeys: String, CodingKey {
-            case id, uri, source, framework, title, summary, filePath, wordCount, rank, summaryTruncated
+            case id, uri, source, framework, title, summary, filePath, wordCount, rank
+            case summaryTruncated, availability, availabilityString
         }
 
         public func encode(to encoder: Encoder) throws {
@@ -68,6 +169,8 @@ extension Search {
             try container.encode(wordCount, forKey: .wordCount)
             try container.encode(rank, forKey: .rank)
             try container.encode(summaryTruncated, forKey: .summaryTruncated)
+            try container.encodeIfPresent(availability, forKey: .availability)
+            try container.encodeIfPresent(availabilityString, forKey: .availabilityString)
         }
 
         public init(from decoder: Decoder) throws {
@@ -81,7 +184,8 @@ extension Search {
             filePath = try container.decode(String.self, forKey: .filePath)
             wordCount = try container.decode(Int.self, forKey: .wordCount)
             rank = try container.decode(Double.self, forKey: .rank)
-            // summaryTruncated is computed, ignore during decode
+            availability = try container.decodeIfPresent([SearchPlatformAvailability].self, forKey: .availability)
+            // summaryTruncated and availabilityString are computed, ignore during decode
         }
     }
 }

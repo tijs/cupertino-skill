@@ -96,6 +96,7 @@ cupertino fetch --type code          # Sample code from Apple (requires auth)
 cupertino fetch --type samples       # Sample code from GitHub (recommended)
 cupertino fetch --type archive       # Apple Archive programming guides
 cupertino fetch --type hig           # Human Interface Guidelines
+cupertino fetch --type availability  # Platform availability data
 cupertino fetch --type all           # All types in parallel
 
 # Build indexes
@@ -281,6 +282,7 @@ These catalogs are indexed during `cupertino save` and enable instant search wit
 - **Features**:
   - Porter stemming (e.g., "running" matches "run")
   - Framework filtering
+  - Platform availability filtering (iOS/macOS version)
   - Snippet generation
   - Sub-100ms query performance
 - **Size**: ~1.9GB index for full documentation (234,000+ documents across 287 frameworks)
@@ -295,6 +297,7 @@ These catalogs are indexed during `cupertino save` and enable instant search wit
 - **Tools**: Search and read capabilities for AI agents
   - **Documentation Tools** (requires `cupertino save`):
     - `search_docs` - Full-text search across all documentation
+      - Parameters: `query` (required), `source`, `framework`, `min_ios`, `min_macos`, `include_archive`, `limit` (all optional)
     - `search_hig` - Search Human Interface Guidelines
       - Parameters: `query` (required), `platform` (optional), `category` (optional), `limit` (optional)
     - `list_frameworks` - List available frameworks
@@ -530,7 +533,7 @@ For development setup, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Project Status
 
-**Version:** 0.5.0
+**Version:** 0.6.0
 **Status:** 🚧 Active Development
 
 - ✅ All core functionality working

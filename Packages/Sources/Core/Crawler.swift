@@ -5,13 +5,11 @@ import Shared
 
 // MARK: - Documentation Crawler
 
-// swiftlint:disable function_body_length
+// swiftlint:disable function_body_length type_body_length
 // Justification: This class implements the core web crawling engine with WKWebView integration.
 // It manages: page navigation, URL queue processing, change detection, content extraction,
 // progress tracking, session persistence, and navigation delegation. The crawling logic is
 // inherently stateful and requires coordinating multiple async operations in sequence.
-// Function body length: 67 lines
-// Disabling: function_body_length (50 line limit for main crawl loop)
 
 /// Main crawler for Apple documentation using WKWebView
 extension Core {
