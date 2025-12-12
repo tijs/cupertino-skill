@@ -598,8 +598,11 @@ extension Shared {
                 "💡 **Tip:** Use `search` with the `framework` parameter to filter results."
 
             /// No results found message
-            public static let messageNoResults =
-                "_No results found. Try different keywords or check available frameworks using `list_frameworks`._"
+            public static let messageNoResults = """
+            _No results found. Try different keywords or check available frameworks using `list_frameworks`._
+
+            💡 **Try other sources:** Use `source` parameter: samples, hig, apple-archive, swift-evolution, swift-org, swift-book, packages, or `all`.
+            """
 
             /// No frameworks found message
             public static func messageNoFrameworks(buildIndexCommand: String) -> String {
@@ -627,18 +630,34 @@ extension Shared {
             public static let tipPlatformFilters =
                 "💡 **Tip:** Filter by platform: `min_ios`, `min_macos`, `min_tvos`, `min_watchos`, `min_visionos`"
 
+            /// All available source values (excluding 'all')
+            public static let availableSources: [String] = [
+                SourcePrefix.appleDocs,
+                SourcePrefix.samples,
+                SourcePrefix.hig,
+                SourcePrefix.appleArchive,
+                SourcePrefix.swiftEvolution,
+                SourcePrefix.swiftOrg,
+                SourcePrefix.swiftBook,
+                SourcePrefix.packages,
+            ]
+
+            /// Get all sources except the specified one(s)
+            public static func otherSources(excluding current: String?) -> [String] {
+                let excluded = current ?? ""
+                return availableSources.filter { $0 != excluded }
+            }
+
             /// Comprehensive tips showing all available search capabilities
             public static let tipSearchCapabilities = """
-            💡 **Available tools:**
-            - `search` - unified search with `source` parameter
-            - `list_frameworks` - see all indexed frameworks
-            - `read_document` - read full doc by URI
-            - `read_sample` / `read_sample_file` - read sample code
-
-            💡 **Source options:** apple-docs, samples, hig, apple-archive, swift-evolution, swift-org, swift-book, packages, all
-
-            💡 **Platform filters:** `min_ios`, `min_macos`, `min_tvos`, `min_watchos`, `min_visionos`
+            💡 **Dig deeper:** Use `source` parameter to search: \(availableSources.joined(separator: ", ")), or `all`.
             """
+
+            /// Generate tip showing other sources for a specific search
+            public static func tipOtherSources(excluding current: String?) -> String {
+                let others = otherSources(excluding: current)
+                return "💡 **Other sources:** \(others.joined(separator: ", ")), or `all`"
+            }
 
             // MARK: Formatting
 

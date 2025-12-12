@@ -24,11 +24,12 @@ public struct MarkdownSearchResultFormatter: ResultFormatter {
     public func format(_ results: [Search.Result]) -> String {
         var md = "# Search Results for \"\(query)\"\n\n"
 
-        // Show active filters
+        // Always tell the AI what source was searched
+        let searchedSource = filters?.source ?? Shared.Constants.SourcePrefix.appleDocs
+        md += "_Source: **\(searchedSource)**_\n\n"
+
+        // Show other filters (not source since we just showed it)
         if let filters, filters.hasActiveFilters {
-            if let source = filters.source {
-                md += "_Filtered to source: **\(source)**_\n\n"
-            }
             if let framework = filters.framework {
                 md += "_Filtered to framework: **\(framework)**_\n\n"
             }
@@ -56,6 +57,8 @@ public struct MarkdownSearchResultFormatter: ResultFormatter {
 
         if results.isEmpty {
             md += config.emptyMessage
+            md += "\n\n"
+            md += Shared.Constants.MCP.tipSearchCapabilities
             return md
         }
 
@@ -85,8 +88,9 @@ public struct MarkdownSearchResultFormatter: ResultFormatter {
             }
         }
 
-        md += "\n\n"
-        md += Shared.Constants.MCP.tipSearchCapabilities
+        // Always remind AI about other sources
+        md += "\n\n---\n\n"
+        md += Shared.Constants.MCP.tipOtherSources(excluding: filters?.source)
         md += "\n"
 
         return md
@@ -108,6 +112,9 @@ public struct HIGMarkdownFormatter: ResultFormatter {
     public func format(_ results: [Search.Result]) -> String {
         var md = "# HIG Search Results for \"\(query.text)\"\n\n"
 
+        // Tell the AI what source this is
+        md += "_Source: **\(Shared.Constants.SourcePrefix.hig)**_\n\n"
+
         if let platform = query.platform {
             md += "_Platform: **\(platform)**_\n\n"
         }
@@ -122,7 +129,8 @@ public struct HIGMarkdownFormatter: ResultFormatter {
             md += "**Tips:**\n"
             md += "- Try broader design terms (e.g., 'buttons', 'typography', 'navigation')\n"
             md += "- Specify a platform: iOS, macOS, watchOS, visionOS, tvOS\n"
-            md += "- Specify a category: foundations, patterns, components, technologies, inputs\n"
+            md += "- Specify a category: foundations, patterns, components, technologies, inputs\n\n"
+            md += Shared.Constants.MCP.tipSearchCapabilities
             return md
         }
 
@@ -145,8 +153,9 @@ public struct HIGMarkdownFormatter: ResultFormatter {
             }
         }
 
-        md += "\n\n"
-        md += Shared.Constants.MCP.tipUseResourcesRead
+        // Always remind AI about other sources
+        md += "\n\n---\n\n"
+        md += Shared.Constants.MCP.tipOtherSources(excluding: Shared.Constants.SourcePrefix.hig)
         md += "\n"
 
         return md
@@ -253,6 +262,9 @@ public struct UnifiedSearchMarkdownFormatter: ResultFormatter {
             md += "_Filtered to framework: **\(framework)**_\n\n"
         }
 
+        // Tell the AI exactly what sources were searched
+        md += "_Searched ALL sources: \(Shared.Constants.MCP.availableSources.joined(separator: ", "))_\n\n"
+
         md += "**Total: \(input.totalCount) results across all sources**\n\n"
 
         // Section 1: Modern Apple Documentation
@@ -307,6 +319,11 @@ public struct UnifiedSearchMarkdownFormatter: ResultFormatter {
         if input.totalCount == 0 {
             md += "_No results found across any source._\n\n"
         }
+
+        // Remind AI what it searched and how to dig deeper
+        md += "---\n\n"
+        md += "_You searched **all** sources. To focus on a specific source, "
+        md += "use `source` parameter with: \(Shared.Constants.MCP.availableSources.joined(separator: ", "))._\n"
 
         return md
     }
