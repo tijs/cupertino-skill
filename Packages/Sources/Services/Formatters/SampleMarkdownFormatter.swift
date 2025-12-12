@@ -51,6 +51,10 @@ public struct SampleSearchMarkdownFormatter: ResultFormatter {
             }
         }
 
+        output += "\n\n"
+        output += Shared.Constants.MCP.tipSearchCapabilities
+        output += "\n"
+
         return output
     }
 }

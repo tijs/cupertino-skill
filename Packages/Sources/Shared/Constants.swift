@@ -241,7 +241,10 @@ extension Shared {
             /// Swift package documentation source prefix
             public static let packages = "packages"
 
-            /// Apple sample code source prefix
+            /// Apple sample code source prefix (short form)
+            public static let samples = "samples"
+
+            /// Apple sample code source prefix (long form, for backward compatibility)
             public static let appleSampleCode = "apple-sample-code"
 
             /// Apple archive documentation source prefix
@@ -250,6 +253,9 @@ extension Shared {
             /// Human Interface Guidelines source prefix
             public static let hig = "hig"
 
+            /// Search all sources at once
+            public static let all = "all"
+
             /// All known source prefixes for query detection
             public static let allPrefixes: [String] = [
                 appleDocs,
@@ -257,8 +263,11 @@ extension Shared {
                 swiftOrg,
                 swiftEvolution,
                 packages,
+                samples,
                 appleSampleCode,
+                appleArchive,
                 hig,
+                all,
             ]
         }
 
@@ -396,8 +405,8 @@ extension Shared {
 
             // MARK: Tool Names
 
-            /// Search documentation tool name
-            public static let toolSearchDocs = "search_docs"
+            /// Unified search tool name (replaces search_docs, search_hig, search_all, search_samples)
+            public static let toolSearch = "search"
 
             /// List frameworks tool name
             public static let toolListFrameworks = "list_frameworks"
@@ -405,16 +414,7 @@ extension Shared {
             /// Read document tool name
             public static let toolReadDocument = "read_document"
 
-            /// Search HIG tool name
-            public static let toolSearchHIG = "search_hig"
-
-            /// Search all tool name (unified search across docs, archive, and samples)
-            public static let toolSearchAll = "search_all"
-
             // MARK: Sample Code Tool Names
-
-            /// Search samples tool name
-            public static let toolSearchSamples = "search_samples"
 
             /// List samples tool name
             public static let toolListSamples = "list_samples"
@@ -463,20 +463,31 @@ extension Shared {
 
             // MARK: Tool Descriptions
 
-            /// Search docs tool description
-            public static let toolSearchDocsDescription = """
+            /// Unified search tool description
+            public static let toolSearchDescription = """
             Search Apple documentation and Swift Evolution proposals by keywords. \
-            Returns a ranked list of relevant documents with URIs that can be read using resources/read. \
-            IMPORTANT: For foundational topics (Core Animation, Quartz 2D, KVO, KVC, threading, memory management), \
-            set include_archive=true to search Apple Archive legacy guides - these contain essential conceptual \
-            documentation not available in modern API docs. For working code examples, also use search_samples. \
-            Optional parameters: source (apple-docs, swift-evolution, swift-org, swift-book, apple-archive, hig), \
-            framework (e.g. swiftui, foundation), include_archive (bool, default false - set true for conceptual guides), \
-            min_ios (filter to APIs available on iOS version, e.g. "13.0"), \
-            min_macos (filter to APIs available on macOS version, e.g. "10.15"), \
-            min_tvos (filter to APIs available on tvOS version, e.g. "13.0"), \
-            min_watchos (filter to APIs available on watchOS version, e.g. "6.0"), \
-            min_visionos (filter to APIs available on visionOS version, e.g. "1.0").
+            Returns a ranked list of relevant documents with URIs that can be read using resources/read.
+
+            **Source options** (use `source` parameter):
+            - apple-docs: Modern Apple API documentation (default)
+            - samples: Sample code projects with working examples
+            - hig: Human Interface Guidelines
+            - apple-archive: Legacy guides (Core Animation, Quartz 2D, KVO/KVC)
+            - swift-evolution: Swift Evolution proposals
+            - swift-org: Swift.org documentation
+            - swift-book: The Swift Programming Language book
+            - packages: Swift package documentation
+            - all: Search ALL sources in one call (recommended for comprehensive results)
+
+            **IMPORTANT:** For foundational topics (Core Animation, Quartz 2D, KVO/KVC, threading), \
+            use source=apple-archive. For working code examples, use source=samples.
+
+            **Optional parameters:**
+            - source: Filter by documentation source (see above)
+            - framework: Filter by framework (e.g. swiftui, foundation)
+            - include_archive: Include archive results when source is not specified
+            - min_ios/min_macos/min_tvos/min_watchos/min_visionos: Filter by API availability
+            - limit: Maximum results (default 20)
             """
 
             /// List frameworks tool description
@@ -491,31 +502,7 @@ extension Shared {
             Use URIs from search_docs results. Format parameter: 'json' (default, structured) or 'markdown' (rendered).
             """
 
-            /// Search HIG tool description
-            public static let toolSearchHIGDescription = """
-            Search Apple Human Interface Guidelines by keywords. \
-            Returns a ranked list of design guidelines with URIs that can be read using resources/read. \
-            Optional parameters: platform (iOS, macOS, watchOS, visionOS, tvOS), \
-            category (foundations, patterns, components, technologies, inputs), limit.
-            """
-
-            /// Search all tool description (unified search)
-            public static let toolSearchAllDescription = """
-            RECOMMENDED: Unified search across ALL documentation sources in one call. \
-            Searches Apple docs, Apple Archive legacy guides (Core Animation, Quartz 2D, KVO/KVC, etc.), \
-            AND sample code projects simultaneously. Use this when you want comprehensive results \
-            without needing to call multiple search tools. Returns combined results organized by source type. \
-            Optional parameters: framework, limit (default 10 per source type).
-            """
-
             // MARK: Sample Code Tool Descriptions
-
-            /// Search samples tool description
-            public static let toolSearchSamplesDescription = """
-            Search Apple sample code projects and source files by keywords. \
-            Returns relevant projects with READMEs and source files containing matching code. \
-            Optional parameters: framework, limit, search_files (default true).
-            """
 
             /// List samples tool description
             public static let toolListSamplesDescription = """
@@ -608,7 +595,7 @@ extension Shared {
 
             /// Tip for filtering by framework
             public static let tipFilterByFramework =
-                "💡 **Tip:** Use `search_docs` with the `framework` parameter to filter results."
+                "💡 **Tip:** Use `search` with the `framework` parameter to filter results."
 
             /// No results found message
             public static let messageNoResults =
@@ -625,15 +612,32 @@ extension Shared {
             /// Tip for exploring other sources when results are limited
             public static let tipExploreOtherSources = """
             💡 **Need more?** Try these additional sources:
-            - `search_docs` with `include_archive: true` for foundational guides \
+            - `search` with `source: apple-archive` for foundational guides \
             (Core Animation, Quartz 2D, KVO/KVC, threading)
-            - `search_samples` for working code examples
+            - `search` with `source: samples` for working code examples
             """
 
             /// Tip for archive when no results
             public static let tipTryArchive = """
-            💡 **Tip:** For conceptual/foundational topics, try `search_docs` with \
-            `include_archive: true` to search Apple Archive legacy programming guides.
+            💡 **Tip:** For conceptual/foundational topics, try `search` with \
+            `source: apple-archive` to search Apple Archive legacy programming guides.
+            """
+
+            /// Tip for platform availability filters
+            public static let tipPlatformFilters =
+                "💡 **Tip:** Filter by platform: `min_ios`, `min_macos`, `min_tvos`, `min_watchos`, `min_visionos`"
+
+            /// Comprehensive tips showing all available search capabilities
+            public static let tipSearchCapabilities = """
+            💡 **Available tools:**
+            - `search` - unified search with `source` parameter
+            - `list_frameworks` - see all indexed frameworks
+            - `read_document` - read full doc by URI
+            - `read_sample` / `read_sample_file` - read sample code
+
+            💡 **Source options:** apple-docs, samples, hig, apple-archive, swift-evolution, swift-org, swift-book, packages, all
+
+            💡 **Platform filters:** `min_ios`, `min_macos`, `min_tvos`, `min_watchos`, `min_visionos`
             """
 
             // MARK: Formatting
@@ -921,6 +925,9 @@ extension Shared {
 
             /// Maximum search result limit
             public static let maxSearchLimit = 100
+
+            /// Teaser result limit (for showing hints from alternate sources)
+            public static let teaserLimit = 2
 
             // MARK: Display Limits
 
