@@ -610,10 +610,4 @@ private struct ProcessResult: Sendable {
     let status: Status
     let filename: String
     let framework: String
-
-    init(status: Status, filename: String, framework: String) {
-        self.status = status
-        self.filename = filename
-        self.framework = framework
-    }
 }

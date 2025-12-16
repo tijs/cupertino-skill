@@ -217,6 +217,9 @@ extension Search {
             let indexes = [
                 "CREATE INDEX IF NOT EXISTS idx_min_ios ON docs_metadata(min_ios);",
                 "CREATE INDEX IF NOT EXISTS idx_min_macos ON docs_metadata(min_macos);",
+                "CREATE INDEX IF NOT EXISTS idx_min_tvos ON docs_metadata(min_tvos);",
+                "CREATE INDEX IF NOT EXISTS idx_min_watchos ON docs_metadata(min_watchos);",
+                "CREATE INDEX IF NOT EXISTS idx_min_visionos ON docs_metadata(min_visionos);",
             ]
 
             for sql in indexes {
@@ -306,6 +309,9 @@ extension Search {
             CREATE INDEX IF NOT EXISTS idx_source_type ON docs_metadata(source_type);
             CREATE INDEX IF NOT EXISTS idx_min_ios ON docs_metadata(min_ios);
             CREATE INDEX IF NOT EXISTS idx_min_macos ON docs_metadata(min_macos);
+            CREATE INDEX IF NOT EXISTS idx_min_tvos ON docs_metadata(min_tvos);
+            CREATE INDEX IF NOT EXISTS idx_min_watchos ON docs_metadata(min_watchos);
+            CREATE INDEX IF NOT EXISTS idx_min_visionos ON docs_metadata(min_visionos);
 
             -- Structured documentation fields (extracted from JSON for querying)
             CREATE TABLE IF NOT EXISTS docs_structured (
@@ -396,6 +402,9 @@ extension Search {
             CREATE INDEX IF NOT EXISTS idx_sample_framework ON sample_code_metadata(framework);
             CREATE INDEX IF NOT EXISTS idx_sample_min_ios ON sample_code_metadata(min_ios);
             CREATE INDEX IF NOT EXISTS idx_sample_min_macos ON sample_code_metadata(min_macos);
+            CREATE INDEX IF NOT EXISTS idx_sample_min_tvos ON sample_code_metadata(min_tvos);
+            CREATE INDEX IF NOT EXISTS idx_sample_min_watchos ON sample_code_metadata(min_watchos);
+            CREATE INDEX IF NOT EXISTS idx_sample_min_visionos ON sample_code_metadata(min_visionos);
 
             -- Code examples embedded in documentation pages
             CREATE TABLE IF NOT EXISTS doc_code_examples (
@@ -1804,7 +1813,12 @@ extension Search {
             framework: String? = nil,
             language: String? = nil,
             limit: Int = Shared.Constants.Limit.defaultSearchLimit,
-            includeArchive: Bool = false
+            includeArchive: Bool = false,
+            minIOS: String? = nil,
+            minMacOS: String? = nil,
+            minTvOS: String? = nil,
+            minWatchOS: String? = nil,
+            minVisionOS: String? = nil
         ) async throws -> [Search.Result] {
             guard let database else {
                 throw SearchError.databaseNotInitialized
@@ -1880,6 +1894,32 @@ extension Search {
                 sql += " AND s.attributes LIKE ?"
             }
 
+            // Normalize empty strings to nil (treat as no filter)
+            let effectiveMinIOS = minIOS?.isEmpty == true ? nil : minIOS
+            let effectiveMinMacOS = minMacOS?.isEmpty == true ? nil : minMacOS
+            let effectiveMinTvOS = minTvOS?.isEmpty == true ? nil : minTvOS
+            let effectiveMinWatchOS = minWatchOS?.isEmpty == true ? nil : minWatchOS
+            let effectiveMinVisionOS = minVisionOS?.isEmpty == true ? nil : minVisionOS
+
+            // Add platform version filters (uses indexed columns for NULL filtering)
+            // Note: We filter IS NOT NULL at SQL level (uses index), then do proper
+            // version comparison in memory since SQL CAST doesn't handle "10.13" vs "10.2" correctly
+            if effectiveMinIOS != nil {
+                sql += " AND m.min_ios IS NOT NULL"
+            }
+            if effectiveMinMacOS != nil {
+                sql += " AND m.min_macos IS NOT NULL"
+            }
+            if effectiveMinTvOS != nil {
+                sql += " AND m.min_tvos IS NOT NULL"
+            }
+            if effectiveMinWatchOS != nil {
+                sql += " AND m.min_watchos IS NOT NULL"
+            }
+            if effectiveMinVisionOS != nil {
+                sql += " AND m.min_visionos IS NOT NULL"
+            }
+
             // Fetch significantly more results so title/kind boosts can surface buried gems
             // View protocol has poor BM25 but exact title match should bring it to top
             let fetchLimit = min(limit * 20, 1000) // Fetch 20x more, max 1000
@@ -1916,6 +1956,8 @@ extension Search {
                 sqlite3_bind_text(statement, paramIndex, (likePattern as NSString).utf8String, -1, nil)
                 paramIndex += 1
             }
+            // Note: Platform version filters use IS NOT NULL (no binding needed)
+            // Proper version comparison happens in memory after fetch
             sqlite3_bind_int(statement, paramIndex, Int32(fetchLimit))
 
             // Execute and collect results
@@ -2213,8 +2255,57 @@ extension Search {
             // Re-sort by adjusted rank (lower BM25 = better)
             results.sort { $0.rank < $1.rank }
 
+            // Apply platform version filters (proper semantic version comparison)
+            // SQL already filtered for IS NOT NULL, now we do proper version compare
+            if let effectiveMinIOS {
+                results = results.filter { result in
+                    guard let version = result.minimumiOS else { return false }
+                    return Self.isVersion(version, lessThanOrEqualTo: effectiveMinIOS)
+                }
+            }
+            if let effectiveMinMacOS {
+                results = results.filter { result in
+                    guard let version = result.minimumMacOS else { return false }
+                    return Self.isVersion(version, lessThanOrEqualTo: effectiveMinMacOS)
+                }
+            }
+            if let effectiveMinTvOS {
+                results = results.filter { result in
+                    guard let version = result.minimumTvOS else { return false }
+                    return Self.isVersion(version, lessThanOrEqualTo: effectiveMinTvOS)
+                }
+            }
+            if let effectiveMinWatchOS {
+                results = results.filter { result in
+                    guard let version = result.minimumWatchOS else { return false }
+                    return Self.isVersion(version, lessThanOrEqualTo: effectiveMinWatchOS)
+                }
+            }
+            if let effectiveMinVisionOS {
+                results = results.filter { result in
+                    guard let version = result.minimumVisionOS else { return false }
+                    return Self.isVersion(version, lessThanOrEqualTo: effectiveMinVisionOS)
+                }
+            }
+
             // Trim to requested limit after applying boosts
             return Array(results.prefix(limit))
+        }
+
+        /// Compare semantic version strings (e.g., "10.13" vs "10.2")
+        /// Returns true if lhs <= rhs (API introduced at or before target version)
+        private static func isVersion(_ lhs: String, lessThanOrEqualTo rhs: String) -> Bool {
+            let lhsComponents = lhs.split(separator: ".").compactMap { Int($0) }
+            let rhsComponents = rhs.split(separator: ".").compactMap { Int($0) }
+
+            for idx in 0..<max(lhsComponents.count, rhsComponents.count) {
+                let lhsValue = idx < lhsComponents.count ? lhsComponents[idx] : 0
+                let rhsValue = idx < rhsComponents.count ? rhsComponents[idx] : 0
+
+                if lhsValue < rhsValue { return true }
+                if lhsValue > rhsValue { return false }
+            }
+            return true // Equal versions
         }
 
         /// List all frameworks with document counts
