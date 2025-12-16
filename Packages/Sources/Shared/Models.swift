@@ -310,8 +310,7 @@ public struct StructuredDocumentationPage: Codable, Sendable, Identifiable, Hash
                 var parenDepth = 1
                 index = decl.index(after: index)
                 while index < decl.endIndex, parenDepth > 0 {
-                    if decl[index] == "(" { parenDepth += 1 }
-                    else if decl[index] == ")" { parenDepth -= 1 }
+                    if decl[index] == "(" { parenDepth += 1 } else if decl[index] == ")" { parenDepth -= 1 }
                     index = decl.index(after: index)
                 }
             }
@@ -358,8 +357,7 @@ public struct StructuredDocumentationPage: Codable, Sendable, Identifiable, Hash
                 var parenDepth = 1
                 index = normalized.index(after: index)
                 while index < normalized.endIndex, parenDepth > 0 {
-                    if normalized[index] == "(" { parenDepth += 1 }
-                    else if normalized[index] == ")" { parenDepth -= 1 }
+                    if normalized[index] == "(" { parenDepth += 1 } else if normalized[index] == ")" { parenDepth -= 1 }
                     index = normalized.index(after: index)
                 }
             }
