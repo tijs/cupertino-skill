@@ -23,14 +23,33 @@ public struct TextSearchResultFormatter: ResultFormatter {
 
         for (index, result) in results.enumerated() {
             output += "[\(index + 1)] \(result.title)\n"
-            output += "    Source: \(result.source) | Framework: \(result.framework)\n"
+
+            // Build metadata line respecting config
+            var metadata: [String] = []
+            if config.showSource {
+                metadata.append("Source: \(result.source)")
+            }
+            metadata.append("Framework: \(result.framework)")
+            if config.showScore {
+                metadata.append("Score: \(String(format: "%.2f", result.score))")
+            }
+            if config.showWordCount {
+                metadata.append("Words: \(result.wordCount)")
+            }
+            output += "    \(metadata.joined(separator: " | "))\n"
+
             output += "    URI: \(result.uri)\n"
 
-            if !result.summary.isEmpty {
-                output += "    \(result.summary)\n"
+            if config.showAvailability,
+               let availability = result.availabilityString, !availability.isEmpty {
+                output += "    Availability: \(availability)\n"
+            }
+
+            if !result.cleanedSummary.isEmpty {
+                output += "    \(result.cleanedSummary)\n"
                 if result.summaryTruncated {
                     output += "    ...\n"
-                    let wordCount = result.summary.split(separator: " ").count
+                    let wordCount = result.cleanedSummary.split(separator: " ").count
                     output += "    [truncated at ~\(wordCount) words] Full document: \(result.uri)\n"
                 }
             }

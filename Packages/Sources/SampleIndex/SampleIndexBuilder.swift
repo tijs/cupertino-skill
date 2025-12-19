@@ -1,3 +1,4 @@
+import ASTIndexer
 import Foundation
 import OSLog
 
@@ -258,9 +259,23 @@ extension SampleIndex {
             // Index project
             try await database.indexProject(project)
 
-            // Index all files
+            // Index all files (with AST extraction for Swift files)
+            let extractor = ASTIndexer.SwiftSourceExtractor()
             for file in files {
                 try await database.indexFile(file)
+
+                // Extract symbols from Swift files (#81)
+                if file.fileExtension == "swift" {
+                    let result = extractor.extract(from: file.content)
+                    if let fileId = try await database.getFileId(projectId: projectId, path: file.path) {
+                        if !result.symbols.isEmpty {
+                            try await database.indexSymbols(fileId: fileId, symbols: result.symbols)
+                        }
+                        if !result.imports.isEmpty {
+                            try await database.indexImports(fileId: fileId, imports: result.imports)
+                        }
+                    }
+                }
             }
 
             return files.count
@@ -411,9 +426,23 @@ extension SampleIndex {
             // Index project
             try await database.indexProject(project)
 
-            // Index all files
+            // Index all files (with AST extraction for Swift files)
+            let extractor = ASTIndexer.SwiftSourceExtractor()
             for file in files {
                 try await database.indexFile(file)
+
+                // Extract symbols from Swift files (#81)
+                if file.fileExtension == "swift" {
+                    let result = extractor.extract(from: file.content)
+                    if let fileId = try await database.getFileId(projectId: projectId, path: file.path) {
+                        if !result.symbols.isEmpty {
+                            try await database.indexSymbols(fileId: fileId, symbols: result.symbols)
+                        }
+                        if !result.imports.isEmpty {
+                            try await database.indexImports(fileId: fileId, imports: result.imports)
+                        }
+                    }
+                }
             }
 
             return files.count

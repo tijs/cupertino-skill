@@ -1,3 +1,4 @@
+import ASTIndexer
 import Foundation
 import Shared
 import SQLite3
@@ -25,7 +26,8 @@ extension Search {
         /// - 6: Added availability columns (min_ios, min_macos, etc.) for efficient filtering
         /// - 7: Previous version
         /// - 8: Added attributes column to docs_structured for @attribute indexing
-        public static let schemaVersion: Int32 = 8
+        /// - 9: Added doc_symbols, doc_imports tables for SwiftSyntax AST indexing (#81)
+        public static let schemaVersion: Int32 = 9
 
         private var database: OpaquePointer?
         private let dbPath: URL
@@ -160,6 +162,9 @@ extension Search {
                 // Version 6 -> 7: Added availability columns to sample_code_metadata
                 try await migrateToVersion7()
             }
+
+            // Version 8 -> 9: New tables created with IF NOT EXISTS in createTables()
+            // No explicit migration needed for doc_symbols, doc_symbols_fts, doc_imports
         }
 
         private func migrateToVersion7() async throws {
@@ -424,6 +429,52 @@ extension Search {
                 code,
                 tokenize='unicode61'
             );
+
+            -- Symbols extracted from Swift code via SwiftSyntax AST (#81)
+            CREATE TABLE IF NOT EXISTS doc_symbols (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                doc_uri TEXT NOT NULL,
+                name TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                line INTEGER NOT NULL,
+                column INTEGER NOT NULL,
+                signature TEXT,
+                is_async INTEGER NOT NULL DEFAULT 0,
+                is_throws INTEGER NOT NULL DEFAULT 0,
+                is_public INTEGER NOT NULL DEFAULT 0,
+                is_static INTEGER NOT NULL DEFAULT 0,
+                attributes TEXT,
+                conformances TEXT,
+                generic_params TEXT,
+                FOREIGN KEY (doc_uri) REFERENCES docs_metadata(uri) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_doc_symbols_uri ON doc_symbols(doc_uri);
+            CREATE INDEX IF NOT EXISTS idx_doc_symbols_kind ON doc_symbols(kind);
+            CREATE INDEX IF NOT EXISTS idx_doc_symbols_name ON doc_symbols(name);
+            CREATE INDEX IF NOT EXISTS idx_doc_symbols_async ON doc_symbols(is_async);
+
+            -- FTS for symbol name search
+            CREATE VIRTUAL TABLE IF NOT EXISTS doc_symbols_fts USING fts5(
+                name,
+                signature,
+                attributes,
+                conformances,
+                tokenize='unicode61'
+            );
+
+            -- Imports extracted from code examples (#81)
+            CREATE TABLE IF NOT EXISTS doc_imports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                doc_uri TEXT NOT NULL,
+                module_name TEXT NOT NULL,
+                line INTEGER NOT NULL,
+                is_exported INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (doc_uri) REFERENCES docs_metadata(uri) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_doc_imports_uri ON doc_imports(doc_uri);
+            CREATE INDEX IF NOT EXISTS idx_doc_imports_module ON doc_imports(module_name);
             """
 
             var errorPointer: UnsafeMutablePointer<CChar>?
@@ -1230,6 +1281,154 @@ extension Search {
                 let errorMessage = String(cString: sqlite3_errmsg(database))
                 throw SearchError.insertFailed("Structured insert: \(errorMessage)")
             }
+
+            // Extract symbols from declaration using SwiftSyntax (#81)
+            if let declaration = page.declaration?.code {
+                let extractor = ASTIndexer.SwiftSourceExtractor()
+                let result = extractor.extract(from: declaration)
+                if !result.symbols.isEmpty {
+                    try await indexDocSymbols(docUri: uri, symbols: result.symbols)
+                }
+                if !result.imports.isEmpty {
+                    try await indexDocImports(docUri: uri, imports: result.imports)
+                }
+            }
+        }
+
+        // MARK: - Symbol Indexing (#81)
+
+        /// Index symbols extracted from Swift code in documentation
+        private func indexDocSymbols(
+            docUri: String,
+            symbols: [ASTIndexer.ExtractedSymbol]
+        ) async throws {
+            guard let database else {
+                throw SearchError.databaseNotInitialized
+            }
+
+            let sql = """
+            INSERT INTO doc_symbols
+            (doc_uri, name, kind, line, column, signature, is_async, is_throws,
+             is_public, is_static, attributes, conformances, generic_params)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """
+
+            for symbol in symbols {
+                var statement: OpaquePointer?
+                defer { sqlite3_finalize(statement) }
+
+                guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK else {
+                    continue
+                }
+
+                sqlite3_bind_text(statement, 1, (docUri as NSString).utf8String, -1, nil)
+                sqlite3_bind_text(statement, 2, (symbol.name as NSString).utf8String, -1, nil)
+                sqlite3_bind_text(statement, 3, (symbol.kind.rawValue as NSString).utf8String, -1, nil)
+                sqlite3_bind_int(statement, 4, Int32(symbol.line))
+                sqlite3_bind_int(statement, 5, Int32(symbol.column))
+
+                if let signature = symbol.signature {
+                    sqlite3_bind_text(statement, 6, (signature as NSString).utf8String, -1, nil)
+                } else {
+                    sqlite3_bind_null(statement, 6)
+                }
+
+                sqlite3_bind_int(statement, 7, symbol.isAsync ? 1 : 0)
+                sqlite3_bind_int(statement, 8, symbol.isThrows ? 1 : 0)
+                sqlite3_bind_int(statement, 9, symbol.isPublic ? 1 : 0)
+                sqlite3_bind_int(statement, 10, symbol.isStatic ? 1 : 0)
+
+                let attributesStr = symbol.attributes.isEmpty ? nil : symbol.attributes.joined(separator: ",")
+                let conformancesStr = symbol.conformances.isEmpty ? nil : symbol.conformances.joined(separator: ",")
+                let genericParamsStr = symbol.genericParameters.isEmpty ? nil : symbol.genericParameters.joined(separator: ",")
+
+                if let attrs = attributesStr {
+                    sqlite3_bind_text(statement, 11, (attrs as NSString).utf8String, -1, nil)
+                } else {
+                    sqlite3_bind_null(statement, 11)
+                }
+
+                if let confs = conformancesStr {
+                    sqlite3_bind_text(statement, 12, (confs as NSString).utf8String, -1, nil)
+                } else {
+                    sqlite3_bind_null(statement, 12)
+                }
+
+                if let generics = genericParamsStr {
+                    sqlite3_bind_text(statement, 13, (generics as NSString).utf8String, -1, nil)
+                } else {
+                    sqlite3_bind_null(statement, 13)
+                }
+
+                _ = sqlite3_step(statement)
+
+                // Insert into FTS
+                try await indexDocSymbolFTS(symbol: symbol)
+            }
+        }
+
+        /// Index symbol into FTS table
+        private func indexDocSymbolFTS(symbol: ASTIndexer.ExtractedSymbol) async throws {
+            guard let database else { return }
+
+            let sql = """
+            INSERT INTO doc_symbols_fts (name, signature, attributes, conformances)
+            VALUES (?, ?, ?, ?);
+            """
+
+            var statement: OpaquePointer?
+            defer { sqlite3_finalize(statement) }
+
+            guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK else {
+                return
+            }
+
+            sqlite3_bind_text(statement, 1, (symbol.name as NSString).utf8String, -1, nil)
+
+            if let signature = symbol.signature {
+                sqlite3_bind_text(statement, 2, (signature as NSString).utf8String, -1, nil)
+            } else {
+                sqlite3_bind_null(statement, 2)
+            }
+
+            let attributesStr = symbol.attributes.joined(separator: " ")
+            let conformancesStr = symbol.conformances.joined(separator: " ")
+
+            sqlite3_bind_text(statement, 3, (attributesStr as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 4, (conformancesStr as NSString).utf8String, -1, nil)
+
+            _ = sqlite3_step(statement)
+        }
+
+        /// Index imports extracted from Swift code in documentation
+        private func indexDocImports(
+            docUri: String,
+            imports: [ASTIndexer.ExtractedImport]
+        ) async throws {
+            guard let database else {
+                throw SearchError.databaseNotInitialized
+            }
+
+            let sql = """
+            INSERT INTO doc_imports (doc_uri, module_name, line, is_exported)
+            VALUES (?, ?, ?, ?);
+            """
+
+            for imp in imports {
+                var statement: OpaquePointer?
+                defer { sqlite3_finalize(statement) }
+
+                guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK else {
+                    continue
+                }
+
+                sqlite3_bind_text(statement, 1, (docUri as NSString).utf8String, -1, nil)
+                sqlite3_bind_text(statement, 2, (imp.moduleName as NSString).utf8String, -1, nil)
+                sqlite3_bind_int(statement, 3, Int32(imp.line))
+                sqlite3_bind_int(statement, 4, imp.isExported ? 1 : 0)
+
+                _ = sqlite3_step(statement)
+            }
         }
 
         /// Get full JSON data for a document
@@ -1850,8 +2049,9 @@ extension Search {
             // Use remaining query after extracting source prefix
             let queryToSearch = remainingQuery.isEmpty ? query : remainingQuery
 
-            // Extract @attribute patterns for filtering (handles "@MainActor" and "MainActor")
-            let (attributeFilters, queryForFTS) = extractAttributeFilters(queryToSearch)
+            // Extract @attribute patterns from query (handles "@MainActor" and "MainActor")
+            // Note: Attributes are used for boosting via symbol search, not hard filtering
+            let (_, queryForFTS) = extractAttributeFilters(queryToSearch)
             let sanitizedQuery = sanitizeFTS5Query(queryForFTS)
 
             var sql = """
@@ -1889,10 +2089,9 @@ extension Search {
                 sql += " AND f.language = ?"
             }
 
-            // Add attribute filters (e.g., "@MainActor" filters to docs with that attribute)
-            for _ in attributeFilters {
-                sql += " AND s.attributes LIKE ?"
-            }
+            // Note: Attribute patterns (e.g., "@MainActor") are used for BOOSTING via symbol search,
+            // not hard filtering. Hard filtering would return 0 results for macros like @Observable
+            // that aren't in doc_symbols.attributes. Symbol boosting happens later in this function.
 
             // Normalize empty strings to nil (treat as no filter)
             let effectiveMinIOS = minIOS?.isEmpty == true ? nil : minIOS
@@ -1950,12 +2149,7 @@ extension Search {
                 sqlite3_bind_text(statement, paramIndex, (language as NSString).utf8String, -1, nil)
                 paramIndex += 1
             }
-            // Bind attribute filters (LIKE patterns for each attribute)
-            for attribute in attributeFilters {
-                let likePattern = "%\(attribute)%"
-                sqlite3_bind_text(statement, paramIndex, (likePattern as NSString).utf8String, -1, nil)
-                paramIndex += 1
-            }
+            // Note: Attribute filters removed - boosting via symbol search instead
             // Note: Platform version filters use IS NOT NULL (no binding needed)
             // Proper version comparison happens in memory after fetch
             sqlite3_bind_int(statement, paramIndex, Int32(fetchLimit))
@@ -2255,6 +2449,32 @@ extension Search {
             // Re-sort by adjusted rank (lower BM25 = better)
             results.sort { $0.rank < $1.rank }
 
+            // (#81) Boost results that also match in doc_symbols_fts
+            // This enables semantic search for @Observable, async, Sendable, etc.
+            let symbolMatchURIs = try await searchSymbolsForURIs(query: sanitizedQuery, limit: 500)
+            if !symbolMatchURIs.isEmpty {
+                results = results.map { result in
+                    if symbolMatchURIs.contains(result.uri) {
+                        // Boost rank for symbol matches (BM25 is negative, lower = better)
+                        return Search.Result(
+                            id: result.id,
+                            uri: result.uri,
+                            source: result.source,
+                            framework: result.framework,
+                            title: result.title,
+                            summary: result.summary,
+                            filePath: result.filePath,
+                            wordCount: result.wordCount,
+                            rank: result.rank * 0.3, // 3x boost for symbol matches
+                            availability: result.availability
+                        )
+                    }
+                    return result
+                }
+                // Re-sort after symbol boosting
+                results.sort { $0.rank < $1.rank }
+            }
+
             // Apply platform version filters (proper semantic version comparison)
             // SQL already filtered for IS NOT NULL, now we do proper version compare
             if let effectiveMinIOS {
@@ -2290,6 +2510,51 @@ extension Search {
 
             // Trim to requested limit after applying boosts
             return Array(results.prefix(limit))
+        }
+
+        /// Search doc_symbols and return matching document URIs (#81)
+        /// Enables semantic search for @Observable, async, Sendable, MainActor, etc.
+        private func searchSymbolsForURIs(query: String, limit: Int) async throws -> Set<String> {
+            guard let database else { return [] }
+
+            // Skip symbol search for very short queries or common words
+            let trimmed = query.trimmingCharacters(in: .whitespaces)
+            guard trimmed.count >= 3 else { return [] }
+
+            // Search doc_symbols directly using LIKE patterns
+            // Matches in: symbol name, attributes (@Observable), conformances (Sendable), signature (async)
+            let likePattern = "%\(trimmed)%"
+            let sql = """
+            SELECT DISTINCT doc_uri
+            FROM doc_symbols
+            WHERE name LIKE ?
+               OR attributes LIKE ?
+               OR conformances LIKE ?
+               OR signature LIKE ?
+            LIMIT ?;
+            """
+
+            var statement: OpaquePointer?
+            defer { sqlite3_finalize(statement) }
+
+            guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK else {
+                return [] // Fail silently - symbol search is optional enhancement
+            }
+
+            sqlite3_bind_text(statement, 1, (likePattern as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 2, (likePattern as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 3, (likePattern as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 4, (likePattern as NSString).utf8String, -1, nil)
+            sqlite3_bind_int(statement, 5, Int32(limit))
+
+            var uris: Set<String> = []
+            while sqlite3_step(statement) == SQLITE_ROW {
+                if let uriPtr = sqlite3_column_text(statement, 0) {
+                    uris.insert(String(cString: uriPtr))
+                }
+            }
+
+            return uris
         }
 
         /// Compare semantic version strings (e.g., "10.13" vs "10.2")
@@ -2920,6 +3185,19 @@ extension Search {
                     break
                 }
             }
+
+            // Remove repeated title lines at the start (used for BM25 boosting)
+            // Filter empty lines first to handle "Title\n\nTitle\n\nTitle" pattern
+            var lines = cleaned.components(separatedBy: "\n")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+
+            // Remove consecutive duplicate lines at the start
+            while lines.count > 1, lines[0] == lines[1] {
+                lines.removeFirst()
+            }
+
+            cleaned = lines.joined(separator: "\n\n")
 
             // Take first maxLength chars
             let truncated = String(cleaned.prefix(maxLength))

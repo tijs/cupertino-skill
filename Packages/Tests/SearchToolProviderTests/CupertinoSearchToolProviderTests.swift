@@ -215,7 +215,7 @@ struct CompositeToolProviderInitTests {
 
 @Suite("Search Tool Source Routing", .serialized)
 struct SearchToolSourceRoutingTests {
-    @Test("Search routes to apple-docs by default")
+    @Test("Search routes to ALL sources by default")
     func searchDefaultSource() async throws {
         let (index, cleanup) = try await createMultiSourceSearchIndex()
         defer { try? cleanup() }
@@ -229,8 +229,10 @@ struct SearchToolSourceRoutingTests {
         #expect(!result.content.isEmpty)
 
         if case let .text(textContent) = result.content.first {
-            // Default search should primarily return apple-docs
+            // Default search (unified) includes all sources - should contain apple-docs content
             #expect(textContent.text.contains("SwiftUI"))
+            // Unified search header indicates all sources searched
+            #expect(textContent.text.contains("Unified Search"))
         }
 
         await index.disconnect()
@@ -783,6 +785,7 @@ struct SearchFilteringTests {
         let provider = CompositeToolProvider(searchIndex: index, sampleDatabase: nil)
         let args: [String: AnyCodable] = [
             "query": AnyCodable("swift"),
+            "source": AnyCodable("apple-docs"), // Specify source to get numbered results format
             "limit": AnyCodable(3),
         ]
 

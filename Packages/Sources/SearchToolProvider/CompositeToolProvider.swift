@@ -10,12 +10,30 @@ import Shared
 /// Composite tool provider that provides unified search across all documentation sources.
 /// Handles `search_docs` with `source` parameter to search docs, samples, HIG, archive, etc.
 public actor CompositeToolProvider: ToolProvider {
+    // Use service layer for consistency with CLI
+    private let docsService: DocsSearchService?
+    private let sampleService: SampleSearchService?
+
+    // Keep direct access for low-level operations (list frameworks, read document)
     private let searchIndex: Search.Index?
     private let sampleDatabase: SampleIndex.Database?
 
     public init(searchIndex: Search.Index?, sampleDatabase: SampleIndex.Database?) {
         self.searchIndex = searchIndex
         self.sampleDatabase = sampleDatabase
+
+        // Wrap databases with services for search operations
+        if let searchIndex {
+            docsService = DocsSearchService(index: searchIndex)
+        } else {
+            docsService = nil
+        }
+
+        if let sampleDatabase {
+            sampleService = SampleSearchService(database: sampleDatabase)
+        } else {
+            sampleService = nil
+        }
     }
 
     // MARK: - ToolProvider
@@ -135,15 +153,10 @@ public actor CompositeToolProvider: ToolProvider {
         let minVisionOS = args.minVisionOS()
 
         // Route based on source parameter
+        // Default (nil) now searches ALL sources for better results (#81)
         switch source {
         case Shared.Constants.SourcePrefix.samples, Shared.Constants.SourcePrefix.appleSampleCode:
             return try await handleSearchSamples(
-                query: query,
-                framework: framework,
-                limit: limit
-            )
-        case Shared.Constants.SourcePrefix.all:
-            return try await handleSearchAll(
                 query: query,
                 framework: framework,
                 limit: limit
@@ -154,8 +167,13 @@ public actor CompositeToolProvider: ToolProvider {
                 framework: framework,
                 limit: limit
             )
-        default:
-            // Default: search documentation index
+        case Shared.Constants.SourcePrefix.appleDocs,
+             Shared.Constants.SourcePrefix.appleArchive,
+             Shared.Constants.SourcePrefix.swiftEvolution,
+             Shared.Constants.SourcePrefix.swiftOrg,
+             Shared.Constants.SourcePrefix.swiftBook,
+             Shared.Constants.SourcePrefix.packages:
+            // Specific source requested: search only that source
             return try await handleSearchDocs(
                 query: query,
                 source: source,
@@ -168,6 +186,13 @@ public actor CompositeToolProvider: ToolProvider {
                 minTvOS: minTvOS,
                 minWatchOS: minWatchOS,
                 minVisionOS: minVisionOS
+            )
+        default:
+            // Default (nil or "all"): search ALL sources for comprehensive results
+            return try await handleSearchAll(
+                query: query,
+                framework: framework,
+                limit: limit
             )
         }
     }
@@ -187,65 +212,24 @@ public actor CompositeToolProvider: ToolProvider {
         minWatchOS: String?,
         minVisionOS: String?
     ) async throws -> CallToolResult {
-        guard let searchIndex else {
+        guard let docsService else {
             throw ToolError.invalidArgument("source", "Documentation index not available")
         }
 
-        // Fetch more results if filtering by version (to account for filtering)
-        let hasVersionFilter = minIOS != nil || minMacOS != nil || minTvOS != nil ||
-            minWatchOS != nil || minVisionOS != nil
-        let fetchLimit = hasVersionFilter
-            ? min(limit * 3, Shared.Constants.Limit.maxSearchLimit)
-            : limit
-
-        // Perform search
-        var results = try await searchIndex.search(
-            query: query,
+        // Use service layer (same as CLI)
+        let results = try await docsService.search(SearchQuery(
+            text: query,
             source: source,
             framework: framework,
             language: language,
-            limit: fetchLimit,
-            includeArchive: includeArchive
-        )
-
-        // Apply version filters if specified
-        if let minIOS {
-            results = results.filter { result in
-                guard let resultVersion = result.minimumiOS else { return false }
-                return Self.isVersion(resultVersion, lessThanOrEqualTo: minIOS)
-            }
-        }
-
-        if let minMacOS {
-            results = results.filter { result in
-                guard let resultVersion = result.minimumMacOS else { return false }
-                return Self.isVersion(resultVersion, lessThanOrEqualTo: minMacOS)
-            }
-        }
-
-        if let minTvOS {
-            results = results.filter { result in
-                guard let resultVersion = result.minimumTvOS else { return false }
-                return Self.isVersion(resultVersion, lessThanOrEqualTo: minTvOS)
-            }
-        }
-
-        if let minWatchOS {
-            results = results.filter { result in
-                guard let resultVersion = result.minimumWatchOS else { return false }
-                return Self.isVersion(resultVersion, lessThanOrEqualTo: minWatchOS)
-            }
-        }
-
-        if let minVisionOS {
-            results = results.filter { result in
-                guard let resultVersion = result.minimumVisionOS else { return false }
-                return Self.isVersion(resultVersion, lessThanOrEqualTo: minVisionOS)
-            }
-        }
-
-        // Trim to requested limit after filtering
-        results = Array(results.prefix(limit))
+            limit: limit,
+            includeArchive: includeArchive,
+            minimumiOS: minIOS,
+            minimumMacOS: minMacOS,
+            minimumTvOS: minTvOS,
+            minimumWatchOS: minWatchOS,
+            minimumVisionOS: minVisionOS
+        ))
 
         // Fetch teaser results from all sources user didn't search
         let teasers = await fetchAllTeasers(
@@ -296,7 +280,7 @@ public actor CompositeToolProvider: ToolProvider {
 
     // MARK: - Teaser Results
 
-    // Uses shared TeaserResults from Services module
+    // Uses shared TeaserService from Services module
 
     /// Fetch teaser results from all sources the user didn't search
     private func fetchAllTeasers(
@@ -305,86 +289,13 @@ public actor CompositeToolProvider: ToolProvider {
         currentSource: String?,
         includeArchive: Bool
     ) async -> Services.TeaserResults {
-        var teasers = Services.TeaserResults()
-        let source = currentSource ?? Shared.Constants.SourcePrefix.appleDocs
-
-        // Samples teaser (unless searching samples)
-        if source != Shared.Constants.SourcePrefix.samples,
-           source != Shared.Constants.SourcePrefix.appleSampleCode {
-            teasers.samples = await fetchTeaserSamples(query: query, framework: framework)
-        }
-
-        // Archive teaser (unless searching archive or include_archive is set)
-        if !includeArchive, source != Shared.Constants.SourcePrefix.appleArchive {
-            teasers.archive = await fetchTeaserFromSource(
-                query: query,
-                sourceType: Shared.Constants.SourcePrefix.appleArchive
-            )
-        }
-
-        // HIG teaser (unless searching HIG)
-        if source != Shared.Constants.SourcePrefix.hig {
-            teasers.hig = await fetchTeaserFromSource(query: query, sourceType: Shared.Constants.SourcePrefix.hig)
-        }
-
-        // Swift Evolution teaser (unless searching swift-evolution)
-        if source != Shared.Constants.SourcePrefix.swiftEvolution {
-            teasers.swiftEvolution = await fetchTeaserFromSource(
-                query: query,
-                sourceType: Shared.Constants.SourcePrefix.swiftEvolution
-            )
-        }
-
-        // Swift.org teaser (unless searching swift-org)
-        if source != Shared.Constants.SourcePrefix.swiftOrg {
-            teasers.swiftOrg = await fetchTeaserFromSource(query: query, sourceType: Shared.Constants.SourcePrefix.swiftOrg)
-        }
-
-        // Swift Book teaser (unless searching swift-book)
-        if source != Shared.Constants.SourcePrefix.swiftBook {
-            teasers.swiftBook = await fetchTeaserFromSource(
-                query: query,
-                sourceType: Shared.Constants.SourcePrefix.swiftBook
-            )
-        }
-
-        // Packages teaser (unless searching packages)
-        if source != Shared.Constants.SourcePrefix.packages {
-            teasers.packages = await fetchTeaserFromSource(query: query, sourceType: Shared.Constants.SourcePrefix.packages)
-        }
-
-        return teasers
-    }
-
-    /// Fetch a few sample projects as teaser (returns empty if unavailable)
-    private func fetchTeaserSamples(query: String, framework: String?) async -> [SampleIndex.Project] {
-        guard let sampleDatabase else { return [] }
-        do {
-            return try await sampleDatabase.searchProjects(
-                query: query,
-                framework: framework,
-                limit: Shared.Constants.Limit.teaserLimit
-            )
-        } catch {
-            return []
-        }
-    }
-
-    /// Fetch teaser results from a specific source
-    private func fetchTeaserFromSource(query: String, sourceType: String) async -> [Search.Result] {
-        guard let searchIndex else { return [] }
-        do {
-            return try await searchIndex.search(
-                query: query,
-                source: sourceType,
-                framework: nil,
-                language: nil,
-                limit: Shared.Constants.Limit.teaserLimit,
-                includeArchive: sourceType == Shared.Constants.SourcePrefix.appleArchive
-            )
-        } catch {
-            return []
-        }
+        let teaserService = TeaserService(searchIndex: searchIndex, sampleDatabase: sampleDatabase)
+        return await teaserService.fetchAllTeasers(
+            query: query,
+            framework: framework,
+            currentSource: currentSource,
+            includeArchive: includeArchive
+        )
     }
 
     // MARK: - Sample Code Search
@@ -394,18 +305,17 @@ public actor CompositeToolProvider: ToolProvider {
         framework: String?,
         limit: Int
     ) async throws -> CallToolResult {
-        guard let sampleDatabase else {
+        guard let sampleService else {
             throw ToolError.invalidArgument("source", "Sample code database not available")
         }
 
-        // Search projects
-        let projects = try await sampleDatabase.searchProjects(query: query, framework: framework, limit: limit)
-
-        // Also search files
-        let files = try await sampleDatabase.searchFiles(query: query, projectId: nil, limit: limit)
-
-        // Build result
-        let result = SampleSearchResult(projects: projects, files: files)
+        // Use service layer (same as CLI)
+        let result = try await sampleService.search(SampleQuery(
+            text: query,
+            framework: framework,
+            searchFiles: true,
+            limit: limit
+        ))
 
         // Use shared formatter
         let formatter = SampleSearchMarkdownFormatter(query: query, framework: framework)
@@ -421,19 +331,19 @@ public actor CompositeToolProvider: ToolProvider {
         framework: String?,
         limit: Int
     ) async throws -> CallToolResult {
-        guard let searchIndex else {
+        guard let docsService else {
             throw ToolError.invalidArgument("source", "Documentation index not available")
         }
 
-        // Search HIG content only
-        let results = try await searchIndex.search(
-            query: query,
+        // Use service layer (same as CLI)
+        let results = try await docsService.search(SearchQuery(
+            text: query,
             source: Shared.Constants.SourcePrefix.hig,
             framework: framework,
             language: nil,
             limit: limit,
             includeArchive: false
-        )
+        ))
 
         // Use shared formatter
         let higQuery = HIGQuery(text: query, platform: nil, category: nil)
@@ -450,130 +360,21 @@ public actor CompositeToolProvider: ToolProvider {
         framework: String?,
         limit: Int
     ) async throws -> CallToolResult {
-        // Search ALL 8 sources
-        var docResults: [Search.Result] = []
-        var archiveResults: [Search.Result] = []
-        var sampleResults: [SampleIndex.Project] = []
-        var higResults: [Search.Result] = []
-        var swiftEvolutionResults: [Search.Result] = []
-        var swiftOrgResults: [Search.Result] = []
-        var swiftBookResults: [Search.Result] = []
-        var packagesResults: [Search.Result] = []
+        // Use UnifiedSearchService to search all 8 sources
+        let unifiedService = UnifiedSearchService(searchIndex: searchIndex, sampleDatabase: sampleDatabase)
+        let input = await unifiedService.searchAll(
+            query: query,
+            framework: framework,
+            limit: limit
+        )
 
-        // Apple Documentation (modern)
-        if let searchIndex {
-            docResults = await (try? searchIndex.search(
-                query: query,
-                source: Shared.Constants.SourcePrefix.appleDocs,
-                framework: framework,
-                language: nil,
-                limit: limit,
-                includeArchive: false
-            )) ?? []
-        }
-
-        // Apple Archive (legacy guides)
-        if let searchIndex {
-            archiveResults = await (try? searchIndex.search(
-                query: query,
-                source: Shared.Constants.SourcePrefix.appleArchive,
-                framework: framework,
-                language: nil,
-                limit: limit,
-                includeArchive: true
-            )) ?? []
-        }
-
-        // Sample Code Projects
-        if let sampleDatabase {
-            sampleResults = await (try? sampleDatabase.searchProjects(
-                query: query,
-                framework: framework,
-                limit: limit
-            )) ?? []
-        }
-
-        // Human Interface Guidelines
-        if let searchIndex {
-            higResults = await (try? searchIndex.search(
-                query: query,
-                source: Shared.Constants.SourcePrefix.hig,
-                framework: nil,
-                language: nil,
-                limit: limit,
-                includeArchive: false
-            )) ?? []
-        }
-
-        // Swift Evolution
-        if let searchIndex {
-            swiftEvolutionResults = await (try? searchIndex.search(
-                query: query,
-                source: Shared.Constants.SourcePrefix.swiftEvolution,
-                framework: nil,
-                language: nil,
-                limit: limit,
-                includeArchive: false
-            )) ?? []
-        }
-
-        // Swift.org
-        if let searchIndex {
-            swiftOrgResults = await (try? searchIndex.search(
-                query: query,
-                source: Shared.Constants.SourcePrefix.swiftOrg,
-                framework: nil,
-                language: nil,
-                limit: limit,
-                includeArchive: false
-            )) ?? []
-        }
-
-        // Swift Book
-        if let searchIndex {
-            swiftBookResults = await (try? searchIndex.search(
-                query: query,
-                source: Shared.Constants.SourcePrefix.swiftBook,
-                framework: nil,
-                language: nil,
-                limit: limit,
-                includeArchive: false
-            )) ?? []
-        }
-
-        // Swift Packages
-        if let searchIndex {
-            packagesResults = await (try? searchIndex.search(
-                query: query,
-                source: Shared.Constants.SourcePrefix.packages,
-                framework: nil,
-                language: nil,
-                limit: limit,
-                includeArchive: false
-            )) ?? []
-        }
-
-        // Use shared formatter
+        // Use shared formatter (identical to CLI --format markdown output)
         let formatter = UnifiedSearchMarkdownFormatter(
             query: query,
             framework: framework,
             config: .mcpDefault
         )
-        let input = UnifiedSearchInput(
-            docResults: docResults,
-            archiveResults: archiveResults,
-            sampleResults: sampleResults,
-            higResults: higResults,
-            swiftEvolutionResults: swiftEvolutionResults,
-            swiftOrgResults: swiftOrgResults,
-            swiftBookResults: swiftBookResults,
-            packagesResults: packagesResults
-        )
-        var markdown = formatter.format(input)
-
-        // Tip for AI about narrowing/expanding search
-        markdown += "\n\n---\n\n"
-        markdown += "_To narrow results, use `source` parameter: apple-docs, samples, hig, apple-archive, swift-evolution, swift-org, swift-book, packages_"
+        let markdown = formatter.format(input)
 
         return CallToolResult(content: [.text(TextContent(text: markdown))])
     }
@@ -741,24 +542,6 @@ public actor CompositeToolProvider: ToolProvider {
         markdown += "```\n"
 
         return CallToolResult(content: [.text(TextContent(text: markdown))])
-    }
-
-    // MARK: - Version Comparison
-
-    /// Compare version strings (e.g., "13.0" vs "15.0")
-    /// Returns true if lhs <= rhs (API was introduced before or at target version)
-    private static func isVersion(_ lhs: String, lessThanOrEqualTo rhs: String) -> Bool {
-        let lhsComponents = lhs.split(separator: ".").compactMap { Int($0) }
-        let rhsComponents = rhs.split(separator: ".").compactMap { Int($0) }
-
-        for idx in 0..<max(lhsComponents.count, rhsComponents.count) {
-            let lhsValue = idx < lhsComponents.count ? lhsComponents[idx] : 0
-            let rhsValue = idx < rhsComponents.count ? rhsComponents[idx] : 0
-
-            if lhsValue < rhsValue { return true }
-            if lhsValue > rhsValue { return false }
-        }
-        return true // Equal versions
     }
 
     // MARK: - Helpers

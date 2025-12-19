@@ -269,6 +269,25 @@ extension Shared {
                 hig,
                 all,
             ]
+
+            // MARK: - Source Emojis
+
+            /// Emoji for Apple Documentation
+            public static let emojiAppleDocs = "📚"
+            /// Emoji for Sample Code
+            public static let emojiSamples = "💻"
+            /// Emoji for Human Interface Guidelines
+            public static let emojiHIG = "🎨"
+            /// Emoji for Apple Archive
+            public static let emojiArchive = "📜"
+            /// Emoji for Swift Evolution
+            public static let emojiSwiftEvolution = "📝"
+            /// Emoji for Swift.org
+            public static let emojiSwiftOrg = "🔶"
+            /// Emoji for Swift Book
+            public static let emojiSwiftBook = "📖"
+            /// Emoji for Swift Packages
+            public static let emojiPackages = "📦"
         }
 
         // MARK: - URLs
@@ -468,8 +487,16 @@ extension Shared {
             Search Apple documentation and Swift Evolution proposals by keywords. \
             Returns a ranked list of relevant documents with URIs that can be read using resources/read.
 
-            **Source options** (use `source` parameter):
-            - apple-docs: Modern Apple API documentation (default)
+            **By default, searches ALL sources** (docs, samples, HIG, etc.) for comprehensive results. \
+            Use `source` parameter to narrow to a specific source.
+
+            **Semantic search:** Includes AST-extracted symbols from Swift source code. \
+            Find @Observable classes, async functions, View conformances, protocol conformances, etc. \
+            Works across both documentation and sample code.
+
+            **Source options** (use `source` parameter to narrow scope):
+            - (default): Search ALL sources at once
+            - apple-docs: Modern Apple API documentation only
             - samples: Sample code projects with working examples
             - hig: Human Interface Guidelines
             - apple-archive: Legacy guides (Core Animation, Quartz 2D, KVO/KVC)
@@ -477,7 +504,6 @@ extension Shared {
             - swift-org: Swift.org documentation
             - swift-book: The Swift Programming Language book
             - packages: Swift package documentation
-            - all: Search ALL sources in one call (recommended for comprehensive results)
 
             **IMPORTANT:** For foundational topics (Core Animation, Quartz 2D, KVO/KVC, threading), \
             use source=apple-archive. For working code examples, use source=samples.

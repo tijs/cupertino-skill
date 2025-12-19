@@ -144,6 +144,26 @@ extension Search {
             summary.hasSuffix("...") || summary.count >= Shared.Constants.ContentLimit.summaryMaxLength - 50
         }
 
+        /// Summary with duplicate title lines removed (for display purposes)
+        /// The content field has title repeated 3x for BM25 boosting, which may leak into summary
+        public var cleanedSummary: String {
+            // Filter out empty lines and trim each line
+            var lines = summary.components(separatedBy: "\n")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+
+            // Remove consecutive duplicate lines at the start (repeated titles for BM25 boosting)
+            while lines.count > 1, lines[0] == lines[1] {
+                lines.removeFirst()
+            }
+            // Remove the remaining title if it matches the document title
+            if !lines.isEmpty, lines[0] == title {
+                lines.removeFirst()
+            }
+
+            return lines.joined(separator: "\n\n")
+        }
+
         /// Inverted score (higher = better match, for easier interpretation)
         public var score: Double {
             // BM25 returns negative scores, invert for positive scores
@@ -164,7 +184,7 @@ extension Search {
             try container.encode(source, forKey: .source)
             try container.encode(framework, forKey: .framework)
             try container.encode(title, forKey: .title)
-            try container.encode(summary, forKey: .summary)
+            try container.encode(cleanedSummary, forKey: .summary)
             try container.encode(filePath, forKey: .filePath)
             try container.encode(wordCount, forKey: .wordCount)
             try container.encode(rank, forKey: .rank)

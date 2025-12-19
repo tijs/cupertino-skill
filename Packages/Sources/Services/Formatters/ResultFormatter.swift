@@ -37,18 +37,8 @@ public struct SearchResultFormatConfig: Sendable {
         self.emptyMessage = emptyMessage
     }
 
-    /// Default configuration for CLI output
-    public static let cliDefault = SearchResultFormatConfig(
-        showScore: false,
-        showWordCount: false,
-        showSource: true,
-        showAvailability: true,
-        showSeparators: false,
-        emptyMessage: "No results found"
-    )
-
-    /// Default configuration for MCP tool output
-    public static let mcpDefault = SearchResultFormatConfig(
+    /// Shared configuration for both CLI and MCP markdown output (identical results)
+    public static let shared = SearchResultFormatConfig(
         showScore: true,
         showWordCount: true,
         showSource: false,
@@ -56,4 +46,10 @@ public struct SearchResultFormatConfig: Sendable {
         showSeparators: true,
         emptyMessage: "_No results found. Try broader search terms._"
     )
+
+    /// Alias for CLI (uses shared config for identical output)
+    public static let cliDefault = shared
+
+    /// Alias for MCP (uses shared config for identical output)
+    public static let mcpDefault = shared
 }
