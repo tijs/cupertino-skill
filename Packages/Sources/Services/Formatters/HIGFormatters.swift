@@ -7,9 +7,11 @@ import Shared
 /// Formats HIG search results as plain text for CLI output
 public struct HIGTextFormatter: ResultFormatter {
     private let query: HIGQuery
+    private let teasers: TeaserResults?
 
-    public init(query: HIGQuery) {
+    public init(query: HIGQuery, teasers: TeaserResults? = nil) {
         self.query = query
+        self.teasers = teasers
     }
 
     public func format(_ results: [Search.Result]) -> String {
@@ -49,6 +51,10 @@ public struct HIGTextFormatter: ResultFormatter {
                 output += "\n"
             }
         }
+
+        // Footer: teasers, tips, and guidance
+        let footer = SearchFooter.singleSource(Shared.Constants.SourcePrefix.hig, teasers: teasers)
+        output += footer.formatText()
 
         return output
     }

@@ -7,11 +7,20 @@ import Shared
 /// Formats search results as plain text for CLI output
 public struct TextSearchResultFormatter: ResultFormatter {
     private let query: String
+    private let source: String?
     private let config: SearchResultFormatConfig
+    private let teasers: TeaserResults?
 
-    public init(query: String, config: SearchResultFormatConfig = .cliDefault) {
+    public init(
+        query: String,
+        source: String? = nil,
+        config: SearchResultFormatConfig = .cliDefault,
+        teasers: TeaserResults? = nil
+    ) {
         self.query = query
+        self.source = source
         self.config = config
+        self.teasers = teasers
     }
 
     public func format(_ results: [Search.Result]) -> String {
@@ -57,6 +66,11 @@ public struct TextSearchResultFormatter: ResultFormatter {
             output += "\n"
         }
 
+        // Footer: teasers, tips, and guidance
+        let searchedSource = source ?? Shared.Constants.SourcePrefix.appleDocs
+        let footer = SearchFooter.singleSource(searchedSource, teasers: teasers)
+        output += footer.formatText()
+
         return output
     }
 }
@@ -82,6 +96,10 @@ public struct FrameworksTextFormatter: ResultFormatter {
         for (framework, count) in frameworks.sorted(by: { $0.value > $1.value }) {
             output += "  \(framework): \(count) documents\n"
         }
+
+        // Footer: tips and guidance
+        let footer = SearchFooter.singleSource(Shared.Constants.SourcePrefix.appleDocs)
+        output += footer.formatText()
 
         return output
     }

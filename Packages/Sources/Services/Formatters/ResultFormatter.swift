@@ -53,3 +53,14 @@ public struct SearchResultFormatConfig: Sendable {
     /// Alias for MCP (uses shared config for identical output)
     public static let mcpDefault = shared
 }
+
+// MARK: - String Utilities
+
+public extension String {
+    /// Truncates the string to a maximum length, adding "..." if truncated
+    func truncated(to maxLength: Int) -> String {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > maxLength else { return trimmed }
+        return String(trimmed.prefix(maxLength)) + "..."
+    }
+}

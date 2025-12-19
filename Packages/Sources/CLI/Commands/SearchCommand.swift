@@ -184,11 +184,12 @@ struct SearchCommand: AsyncParsableCommand {
         // Output results using formatters
         switch format {
         case .text:
-            let formatter = TextSearchResultFormatter(query: query)
-            var output = formatter.format(results)
-            let teaserFormatter = TeaserTextFormatter()
-            output += teaserFormatter.format(teasers)
-            Log.output(output)
+            let formatter = TextSearchResultFormatter(
+                query: query,
+                source: source,
+                teasers: teasers
+            )
+            Log.output(formatter.format(results))
         case .json:
             let formatter = JSONSearchResultFormatter()
             Log.output(formatter.format(results))
@@ -205,13 +206,10 @@ struct SearchCommand: AsyncParsableCommand {
                     minimumWatchOS: minWatchos,
                     minimumVisionOS: minVisionos
                 ),
-                config: .cliDefault
+                config: .cliDefault,
+                teasers: teasers
             )
-            var output = formatter.format(results)
-            // Use shared TeaserMarkdownFormatter (same as MCP)
-            let teaserFormatter = TeaserMarkdownFormatter()
-            output += teaserFormatter.format(teasers)
-            Log.output(output)
+            Log.output(formatter.format(results))
         }
     }
 
@@ -245,11 +243,8 @@ struct SearchCommand: AsyncParsableCommand {
         // Output results using formatters
         switch format {
         case .text:
-            let formatter = SampleSearchTextFormatter(query: query, framework: framework)
-            var output = formatter.format(result)
-            let teaserFormatter = TeaserTextFormatter()
-            output += teaserFormatter.format(teasers)
-            Log.output(output)
+            let formatter = SampleSearchTextFormatter(query: query, framework: framework, teasers: teasers)
+            Log.output(formatter.format(result))
         case .json:
             let formatter = SampleSearchJSONFormatter(query: query, framework: framework)
             Log.output(formatter.format(result))
@@ -290,11 +285,8 @@ struct SearchCommand: AsyncParsableCommand {
 
         switch format {
         case .text:
-            let formatter = HIGTextFormatter(query: higQuery)
-            var output = formatter.format(results)
-            let teaserFormatter = TeaserTextFormatter()
-            output += teaserFormatter.format(teasers)
-            Log.output(output)
+            let formatter = HIGTextFormatter(query: higQuery, teasers: teasers)
+            Log.output(formatter.format(results))
         case .json:
             let formatter = HIGJSONFormatter(query: higQuery)
             Log.output(formatter.format(results))

@@ -122,90 +122,15 @@ public struct SearchFooter: Sendable, FooterProvider {
     }
 
     private func makeTeaserItems(_ teasers: TeaserResults) -> [FooterItem] {
-        var items: [FooterItem] = []
-        typealias Prefix = Shared.Constants.SourcePrefix
-
-        if !teasers.appleDocs.isEmpty {
-            let titles = teasers.appleDocs.map { "- \($0.title)" }.joined(separator: "\n")
-            items.append(FooterItem(
+        teasers.allSources.map { source in
+            let titleList = source.titles.map { "- \($0)" }.joined(separator: "\n")
+            return FooterItem(
                 kind: .teaser,
-                title: "Also in Apple Documentation",
-                content: "\(titles)\n_→ Use `source: \(Prefix.appleDocs)`_",
-                emoji: Prefix.emojiAppleDocs
-            ))
+                title: "Also in \(source.displayName)",
+                content: "\(titleList)\n_→ Use `source: \(source.sourcePrefix)`_",
+                emoji: source.emoji
+            )
         }
-
-        if !teasers.samples.isEmpty {
-            let titles = teasers.samples.map { "- \($0.title)" }.joined(separator: "\n")
-            items.append(FooterItem(
-                kind: .teaser,
-                title: "Also in Sample Code",
-                content: "\(titles)\n_→ Use `source: \(Prefix.samples)`_",
-                emoji: Prefix.emojiSamples
-            ))
-        }
-
-        if !teasers.archive.isEmpty {
-            let titles = teasers.archive.map { "- \($0.title)" }.joined(separator: "\n")
-            items.append(FooterItem(
-                kind: .teaser,
-                title: "Also in Apple Archive",
-                content: "\(titles)\n_→ Use `source: \(Prefix.appleArchive)`_",
-                emoji: Prefix.emojiArchive
-            ))
-        }
-
-        if !teasers.hig.isEmpty {
-            let titles = teasers.hig.map { "- \($0.title)" }.joined(separator: "\n")
-            items.append(FooterItem(
-                kind: .teaser,
-                title: "Also in Human Interface Guidelines",
-                content: "\(titles)\n_→ Use `source: \(Prefix.hig)`_",
-                emoji: Prefix.emojiHIG
-            ))
-        }
-
-        if !teasers.swiftEvolution.isEmpty {
-            let titles = teasers.swiftEvolution.map { "- \($0.title)" }.joined(separator: "\n")
-            items.append(FooterItem(
-                kind: .teaser,
-                title: "Also in Swift Evolution",
-                content: "\(titles)\n_→ Use `source: \(Prefix.swiftEvolution)`_",
-                emoji: Prefix.emojiSwiftEvolution
-            ))
-        }
-
-        if !teasers.swiftOrg.isEmpty {
-            let titles = teasers.swiftOrg.map { "- \($0.title)" }.joined(separator: "\n")
-            items.append(FooterItem(
-                kind: .teaser,
-                title: "Also in Swift.org",
-                content: "\(titles)\n_→ Use `source: \(Prefix.swiftOrg)`_",
-                emoji: Prefix.emojiSwiftOrg
-            ))
-        }
-
-        if !teasers.swiftBook.isEmpty {
-            let titles = teasers.swiftBook.map { "- \($0.title)" }.joined(separator: "\n")
-            items.append(FooterItem(
-                kind: .teaser,
-                title: "Also in Swift Book",
-                content: "\(titles)\n_→ Use `source: \(Prefix.swiftBook)`_",
-                emoji: Prefix.emojiSwiftBook
-            ))
-        }
-
-        if !teasers.packages.isEmpty {
-            let titles = teasers.packages.map { "- \($0.title)" }.joined(separator: "\n")
-            items.append(FooterItem(
-                kind: .teaser,
-                title: "Also in Swift Packages",
-                content: "\(titles)\n_→ Use `source: \(Prefix.packages)`_",
-                emoji: Prefix.emojiPackages
-            ))
-        }
-
-        return items
     }
 }
 
@@ -267,20 +192,10 @@ public struct TextFooterFormatter: FooterFormattable {
                 if let title = item.title {
                     output += "\(title):\n"
                 }
-                // Convert markdown list to text
-                let textContent = item.content
-                    .replacingOccurrences(of: "_→", with: "→")
-                    .replacingOccurrences(of: "_", with: "")
-                    .replacingOccurrences(of: "`", with: "")
-                output += textContent + "\n\n"
+                output += stripMarkdown(item.content, preserveArrow: true) + "\n\n"
 
             case .sourceTip, .semanticTip, .platformTip:
-                // Strip markdown formatting for text
-                let textContent = item.content
-                    .replacingOccurrences(of: "_", with: "")
-                    .replacingOccurrences(of: "`", with: "")
-                    .replacingOccurrences(of: "**", with: "")
-                output += textContent + "\n\n"
+                output += stripMarkdown(item.content) + "\n\n"
 
             case .custom:
                 if let title = item.title {
@@ -291,6 +206,18 @@ public struct TextFooterFormatter: FooterFormattable {
         }
 
         return output.trimmingCharacters(in: .newlines) + "\n"
+    }
+
+    /// Strips markdown formatting for plain text output
+    private func stripMarkdown(_ text: String, preserveArrow: Bool = false) -> String {
+        var result = text
+        if preserveArrow {
+            result = result.replacingOccurrences(of: "_→", with: "→")
+        }
+        return result
+            .replacingOccurrences(of: "_", with: "")
+            .replacingOccurrences(of: "`", with: "")
+            .replacingOccurrences(of: "**", with: "")
     }
 }
 
@@ -322,13 +249,18 @@ public extension SearchFooter {
         )
     }
 
+    /// Format using any FooterFormattable formatter
+    func format(with formatter: some FooterFormattable) -> String {
+        formatter.format(makeFooter())
+    }
+
     /// Format as markdown
     func formatMarkdown() -> String {
-        MarkdownFooterFormatter().format(makeFooter())
+        format(with: MarkdownFooterFormatter())
     }
 
     /// Format as plain text
     func formatText() -> String {
-        TextFooterFormatter().format(makeFooter())
+        format(with: TextFooterFormatter())
     }
 }

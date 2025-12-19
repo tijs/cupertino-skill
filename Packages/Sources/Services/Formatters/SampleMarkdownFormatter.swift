@@ -104,9 +104,9 @@ public struct SampleListMarkdownFormatter: ResultFormatter {
             }
         }
 
-        // Always remind AI about other sources
-        output += "\n---\n\n"
-        output += Shared.Constants.MCP.tipOtherSources(excluding: Shared.Constants.SourcePrefix.samples)
+        // Footer: tips and guidance
+        let footer = SearchFooter.singleSource(Shared.Constants.SourcePrefix.samples)
+        output += footer.formatMarkdown()
 
         return output
     }
@@ -128,9 +128,9 @@ public struct SampleProjectMarkdownFormatter: ResultFormatter {
             output += "## Description\n\n\(project.description)\n"
         }
 
-        // Always remind AI about other sources
-        output += "\n---\n\n"
-        output += Shared.Constants.MCP.tipOtherSources(excluding: Shared.Constants.SourcePrefix.samples)
+        // Footer: tips and guidance
+        let footer = SearchFooter.singleSource(Shared.Constants.SourcePrefix.samples)
+        output += footer.formatMarkdown()
 
         return output
     }
@@ -155,9 +155,9 @@ public struct SampleFileMarkdownFormatter: ResultFormatter {
         output += "- **Path:** `\(file.path)`\n\n"
         output += "```\(language)\n\(file.content)\n```\n"
 
-        // Always remind AI about other sources
-        output += "\n---\n\n"
-        output += Shared.Constants.MCP.tipOtherSources(excluding: Shared.Constants.SourcePrefix.samples)
+        // Footer: tips and guidance
+        let footer = SearchFooter.singleSource(Shared.Constants.SourcePrefix.samples)
+        output += footer.formatMarkdown()
 
         return output
     }

@@ -215,9 +215,9 @@ public struct FrameworksMarkdownFormatter: ResultFormatter {
             md += "| `\(framework)` | \(count) |\n"
         }
 
-        md += "\n"
-        md += Shared.Constants.MCP.tipFilterByFramework
-        md += "\n"
+        // Footer: tips and guidance
+        let footer = SearchFooter.singleSource(Shared.Constants.SourcePrefix.appleDocs)
+        md += footer.formatMarkdown()
 
         return md
     }
@@ -262,6 +262,74 @@ public struct UnifiedSearchInput: Sendable {
             higResults.count + swiftEvolutionResults.count + swiftOrgResults.count +
             swiftBookResults.count + packagesResults.count
     }
+
+    /// Represents a doc source section for iteration
+    public struct DocSourceSection: Sendable {
+        public let displayName: String
+        public let emoji: String
+        public let results: [Search.Result]
+
+        public var isEmpty: Bool { results.isEmpty }
+        public var count: Int { results.count }
+    }
+
+    /// Returns all non-empty doc sources for iteration (excludes samples which have different type)
+    public var allDocSources: [DocSourceSection] {
+        typealias Prefix = Shared.Constants.SourcePrefix
+        var sections: [DocSourceSection] = []
+
+        if !docResults.isEmpty {
+            sections.append(DocSourceSection(
+                displayName: "Apple Documentation",
+                emoji: Prefix.emojiAppleDocs,
+                results: docResults
+            ))
+        }
+        if !higResults.isEmpty {
+            sections.append(DocSourceSection(
+                displayName: "Human Interface Guidelines",
+                emoji: Prefix.emojiHIG,
+                results: higResults
+            ))
+        }
+        if !archiveResults.isEmpty {
+            sections.append(DocSourceSection(
+                displayName: "Apple Archive",
+                emoji: Prefix.emojiArchive,
+                results: archiveResults
+            ))
+        }
+        if !swiftEvolutionResults.isEmpty {
+            sections.append(DocSourceSection(
+                displayName: "Swift Evolution",
+                emoji: Prefix.emojiSwiftEvolution,
+                results: swiftEvolutionResults
+            ))
+        }
+        if !swiftOrgResults.isEmpty {
+            sections.append(DocSourceSection(
+                displayName: "Swift.org",
+                emoji: Prefix.emojiSwiftOrg,
+                results: swiftOrgResults
+            ))
+        }
+        if !swiftBookResults.isEmpty {
+            sections.append(DocSourceSection(
+                displayName: "Swift Book",
+                emoji: Prefix.emojiSwiftBook,
+                results: swiftBookResults
+            ))
+        }
+        if !packagesResults.isEmpty {
+            sections.append(DocSourceSection(
+                displayName: "Swift Packages",
+                emoji: Prefix.emojiPackages,
+                results: packagesResults
+            ))
+        }
+
+        return sections
+    }
 }
 
 /// Formats unified search results (ALL sources) as markdown
@@ -292,55 +360,16 @@ public struct UnifiedSearchMarkdownFormatter: ResultFormatter {
 
         md += "**Total: \(input.totalCount) results across all sources**\n\n"
 
-        typealias Emoji = Shared.Constants.SourcePrefix
-
-        // Section 1: Modern Apple Documentation
-        if !input.docResults.isEmpty {
-            md += "## \(Emoji.emojiAppleDocs) Apple Documentation (\(input.docResults.count))\n\n"
-            md += formatDocResults(input.docResults)
-        }
-
-        // Section 2: Sample Code Projects
+        // Sample Code (different type, handled separately)
         if !input.sampleResults.isEmpty {
-            md += "## \(Emoji.emojiSamples) Sample Code (\(input.sampleResults.count))\n\n"
+            md += "## \(Shared.Constants.SourcePrefix.emojiSamples) Sample Code (\(input.sampleResults.count))\n\n"
             md += formatSampleResults(input.sampleResults)
         }
 
-        // Section 3: Human Interface Guidelines
-        if !input.higResults.isEmpty {
-            md += "## \(Emoji.emojiHIG) Human Interface Guidelines (\(input.higResults.count))\n\n"
-            md += formatDocResults(input.higResults)
-        }
-
-        // Section 4: Apple Archive (Legacy Guides)
-        if !input.archiveResults.isEmpty {
-            md += "## \(Emoji.emojiArchive) Apple Archive (\(input.archiveResults.count))\n\n"
-            md += formatDocResults(input.archiveResults)
-        }
-
-        // Section 5: Swift Evolution
-        if !input.swiftEvolutionResults.isEmpty {
-            let count = input.swiftEvolutionResults.count
-            md += "## \(Emoji.emojiSwiftEvolution) Swift Evolution (\(count))\n\n"
-            md += formatDocResults(input.swiftEvolutionResults)
-        }
-
-        // Section 6: Swift.org
-        if !input.swiftOrgResults.isEmpty {
-            md += "## \(Emoji.emojiSwiftOrg) Swift.org (\(input.swiftOrgResults.count))\n\n"
-            md += formatDocResults(input.swiftOrgResults)
-        }
-
-        // Section 7: Swift Book
-        if !input.swiftBookResults.isEmpty {
-            md += "## \(Emoji.emojiSwiftBook) Swift Book (\(input.swiftBookResults.count))\n\n"
-            md += formatDocResults(input.swiftBookResults)
-        }
-
-        // Section 8: Swift Packages
-        if !input.packagesResults.isEmpty {
-            md += "## \(Emoji.emojiPackages) Swift Packages (\(input.packagesResults.count))\n\n"
-            md += formatDocResults(input.packagesResults)
+        // All doc sources (unified iteration)
+        for section in input.allDocSources {
+            md += "## \(section.emoji) \(section.displayName) (\(section.count))\n\n"
+            md += formatDocResults(section.results)
         }
 
         // Show message if no results at all
@@ -359,11 +388,9 @@ public struct UnifiedSearchMarkdownFormatter: ResultFormatter {
         var md = ""
         for result in results {
             md += "- **\(result.title)**\n"
-            // Include summary for context (truncate if too long)
-            let summary = result.cleanedSummary
+            let summary = result.cleanedSummary.truncated(to: 150)
             if !summary.isEmpty {
-                let truncated = summary.count > 150 ? String(summary.prefix(150)) + "..." : summary
-                md += "  - \(truncated)\n"
+                md += "  - \(summary)\n"
             }
             md += "  - URI: `\(result.uri)`\n"
             if config.showAvailability,
@@ -379,11 +406,9 @@ public struct UnifiedSearchMarkdownFormatter: ResultFormatter {
         var md = ""
         for project in projects {
             md += "- **\(project.title)**\n"
-            // Include description for context (truncate if too long)
-            let desc = project.description.trimmingCharacters(in: .whitespacesAndNewlines)
+            let desc = project.description.truncated(to: 150)
             if !desc.isEmpty {
-                let truncated = desc.count > 150 ? String(desc.prefix(150)) + "..." : desc
-                md += "  - \(truncated)\n"
+                md += "  - \(desc)\n"
             }
             md += "  - ID: `\(project.id)`\n"
             md += "  - Frameworks: \(project.frameworks.joined(separator: ", "))\n"
