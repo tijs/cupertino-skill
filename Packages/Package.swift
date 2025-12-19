@@ -202,7 +202,7 @@ let targets: [Target] = {
     )
     let astIndexerTestsTarget = Target.testTarget(
         name: "ASTIndexerTests",
-        dependencies: ["ASTIndexer", "TestSupport"]
+        dependencies: ["ASTIndexer", "Search", "SampleIndex", "TestSupport"]
     )
 
     let cliTarget = Target.executableTarget(

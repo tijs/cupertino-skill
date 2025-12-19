@@ -44,12 +44,12 @@ public actor CompositeToolProvider: ToolProvider {
         // Unified search tool (replaces search_docs, search_hig, search_all, search_samples)
         if searchIndex != nil || sampleDatabase != nil {
             allTools.append(Tool(
-                name: Shared.Constants.MCP.toolSearch,
-                description: Shared.Constants.MCP.toolSearchDescription,
+                name: Shared.Constants.Search.toolSearch,
+                description: Shared.Constants.Search.toolSearchDescription,
                 inputSchema: JSONSchema(
-                    type: Shared.Constants.MCP.schemaTypeObject,
+                    type: Shared.Constants.Search.schemaTypeObject,
                     properties: nil,
-                    required: [Shared.Constants.MCP.schemaParamQuery]
+                    required: [Shared.Constants.Search.schemaParamQuery]
                 )
             ))
         }
@@ -57,22 +57,22 @@ public actor CompositeToolProvider: ToolProvider {
         // List frameworks tool
         if searchIndex != nil {
             allTools.append(Tool(
-                name: Shared.Constants.MCP.toolListFrameworks,
-                description: Shared.Constants.MCP.toolListFrameworksDescription,
+                name: Shared.Constants.Search.toolListFrameworks,
+                description: Shared.Constants.Search.toolListFrameworksDescription,
                 inputSchema: JSONSchema(
-                    type: Shared.Constants.MCP.schemaTypeObject,
+                    type: Shared.Constants.Search.schemaTypeObject,
                     properties: [:],
                     required: []
                 )
             ))
 
             allTools.append(Tool(
-                name: Shared.Constants.MCP.toolReadDocument,
-                description: Shared.Constants.MCP.toolReadDocumentDescription,
+                name: Shared.Constants.Search.toolReadDocument,
+                description: Shared.Constants.Search.toolReadDocumentDescription,
                 inputSchema: JSONSchema(
-                    type: Shared.Constants.MCP.schemaTypeObject,
+                    type: Shared.Constants.Search.schemaTypeObject,
                     properties: nil,
-                    required: [Shared.Constants.MCP.schemaParamURI]
+                    required: [Shared.Constants.Search.schemaParamURI]
                 )
             ))
         }
@@ -80,34 +80,34 @@ public actor CompositeToolProvider: ToolProvider {
         // Sample code tools
         if sampleDatabase != nil {
             allTools.append(Tool(
-                name: Shared.Constants.MCP.toolListSamples,
-                description: Shared.Constants.MCP.toolListSamplesDescription,
+                name: Shared.Constants.Search.toolListSamples,
+                description: Shared.Constants.Search.toolListSamplesDescription,
                 inputSchema: JSONSchema(
-                    type: Shared.Constants.MCP.schemaTypeObject,
+                    type: Shared.Constants.Search.schemaTypeObject,
                     properties: [:],
                     required: []
                 )
             ))
 
             allTools.append(Tool(
-                name: Shared.Constants.MCP.toolReadSample,
-                description: Shared.Constants.MCP.toolReadSampleDescription,
+                name: Shared.Constants.Search.toolReadSample,
+                description: Shared.Constants.Search.toolReadSampleDescription,
                 inputSchema: JSONSchema(
-                    type: Shared.Constants.MCP.schemaTypeObject,
+                    type: Shared.Constants.Search.schemaTypeObject,
                     properties: nil,
-                    required: [Shared.Constants.MCP.schemaParamProjectId]
+                    required: [Shared.Constants.Search.schemaParamProjectId]
                 )
             ))
 
             allTools.append(Tool(
-                name: Shared.Constants.MCP.toolReadSampleFile,
-                description: Shared.Constants.MCP.toolReadSampleFileDescription,
+                name: Shared.Constants.Search.toolReadSampleFile,
+                description: Shared.Constants.Search.toolReadSampleFileDescription,
                 inputSchema: JSONSchema(
-                    type: Shared.Constants.MCP.schemaTypeObject,
+                    type: Shared.Constants.Search.schemaTypeObject,
                     properties: nil,
                     required: [
-                        Shared.Constants.MCP.schemaParamProjectId,
-                        Shared.Constants.MCP.schemaParamFilePath,
+                        Shared.Constants.Search.schemaParamProjectId,
+                        Shared.Constants.Search.schemaParamFilePath,
                     ]
                 )
             ))
@@ -116,42 +116,42 @@ public actor CompositeToolProvider: ToolProvider {
         // Semantic search tools (#81)
         if searchIndex != nil {
             allTools.append(Tool(
-                name: Shared.Constants.MCP.toolSearchSymbols,
-                description: Shared.Constants.MCP.toolSearchSymbolsDescription,
+                name: Shared.Constants.Search.toolSearchSymbols,
+                description: Shared.Constants.Search.toolSearchSymbolsDescription,
                 inputSchema: JSONSchema(
-                    type: Shared.Constants.MCP.schemaTypeObject,
+                    type: Shared.Constants.Search.schemaTypeObject,
                     properties: nil,
                     required: []
                 )
             ))
 
             allTools.append(Tool(
-                name: Shared.Constants.MCP.toolSearchPropertyWrappers,
-                description: Shared.Constants.MCP.toolSearchPropertyWrappersDescription,
+                name: Shared.Constants.Search.toolSearchPropertyWrappers,
+                description: Shared.Constants.Search.toolSearchPropertyWrappersDescription,
                 inputSchema: JSONSchema(
-                    type: Shared.Constants.MCP.schemaTypeObject,
+                    type: Shared.Constants.Search.schemaTypeObject,
                     properties: nil,
-                    required: [Shared.Constants.MCP.schemaParamWrapper]
+                    required: [Shared.Constants.Search.schemaParamWrapper]
                 )
             ))
 
             allTools.append(Tool(
-                name: Shared.Constants.MCP.toolSearchConcurrency,
-                description: Shared.Constants.MCP.toolSearchConcurrencyDescription,
+                name: Shared.Constants.Search.toolSearchConcurrency,
+                description: Shared.Constants.Search.toolSearchConcurrencyDescription,
                 inputSchema: JSONSchema(
-                    type: Shared.Constants.MCP.schemaTypeObject,
+                    type: Shared.Constants.Search.schemaTypeObject,
                     properties: nil,
-                    required: [Shared.Constants.MCP.schemaParamPattern]
+                    required: [Shared.Constants.Search.schemaParamPattern]
                 )
             ))
 
             allTools.append(Tool(
-                name: Shared.Constants.MCP.toolSearchConformances,
-                description: Shared.Constants.MCP.toolSearchConformancesDescription,
+                name: Shared.Constants.Search.toolSearchConformances,
+                description: Shared.Constants.Search.toolSearchConformancesDescription,
                 inputSchema: JSONSchema(
-                    type: Shared.Constants.MCP.schemaTypeObject,
+                    type: Shared.Constants.Search.schemaTypeObject,
                     properties: nil,
-                    required: [Shared.Constants.MCP.schemaParamProtocol]
+                    required: [Shared.Constants.Search.schemaParamProtocol]
                 )
             ))
         }
@@ -163,25 +163,25 @@ public actor CompositeToolProvider: ToolProvider {
         let args = ArgumentExtractor(arguments)
 
         switch name {
-        case Shared.Constants.MCP.toolSearch:
+        case Shared.Constants.Search.toolSearch:
             return try await handleSearch(args: args)
-        case Shared.Constants.MCP.toolListFrameworks:
+        case Shared.Constants.Search.toolListFrameworks:
             return try await handleListFrameworks()
-        case Shared.Constants.MCP.toolReadDocument:
+        case Shared.Constants.Search.toolReadDocument:
             return try await handleReadDocument(args: args)
-        case Shared.Constants.MCP.toolListSamples:
+        case Shared.Constants.Search.toolListSamples:
             return try await handleListSamples(args: args)
-        case Shared.Constants.MCP.toolReadSample:
+        case Shared.Constants.Search.toolReadSample:
             return try await handleReadSample(args: args)
-        case Shared.Constants.MCP.toolReadSampleFile:
+        case Shared.Constants.Search.toolReadSampleFile:
             return try await handleReadSampleFile(args: args)
-        case Shared.Constants.MCP.toolSearchSymbols:
+        case Shared.Constants.Search.toolSearchSymbols:
             return try await handleSearchSymbols(args: args)
-        case Shared.Constants.MCP.toolSearchPropertyWrappers:
+        case Shared.Constants.Search.toolSearchPropertyWrappers:
             return try await handleSearchPropertyWrappers(args: args)
-        case Shared.Constants.MCP.toolSearchConcurrency:
+        case Shared.Constants.Search.toolSearchConcurrency:
             return try await handleSearchConcurrency(args: args)
-        case Shared.Constants.MCP.toolSearchConformances:
+        case Shared.Constants.Search.toolSearchConformances:
             return try await handleSearchConformances(args: args)
         default:
             throw ToolError.unknownTool(name)
@@ -191,10 +191,10 @@ public actor CompositeToolProvider: ToolProvider {
     // MARK: - Unified Search Handler
 
     private func handleSearch(args: ArgumentExtractor) async throws -> CallToolResult {
-        let query: String = try args.require(Shared.Constants.MCP.schemaParamQuery)
-        let source = args.optional(Shared.Constants.MCP.schemaParamSource)
-        let framework = args.optional(Shared.Constants.MCP.schemaParamFramework)
-        let language = args.optional(Shared.Constants.MCP.schemaParamLanguage)
+        let query: String = try args.require(Shared.Constants.Search.schemaParamQuery)
+        let source = args.optional(Shared.Constants.Search.schemaParamSource)
+        let framework = args.optional(Shared.Constants.Search.schemaParamFramework)
+        let language = args.optional(Shared.Constants.Search.schemaParamLanguage)
         let limit = args.limit()
         let includeArchive = args.includeArchive()
         let minIOS = args.minIOS()
@@ -311,7 +311,7 @@ public actor CompositeToolProvider: ToolProvider {
                 showSource: false,
                 showAvailability: true,
                 showSeparators: true,
-                emptyMessage: Shared.Constants.MCP.messageNoResults + "\n\n" + Shared.Constants.MCP.tipTryArchive
+                emptyMessage: Shared.Constants.Search.messageNoResults + "\n\n" + Shared.Constants.Search.tipTryArchive
             )
         }
 
@@ -466,14 +466,14 @@ public actor CompositeToolProvider: ToolProvider {
             throw ToolError.invalidArgument("index", "Documentation index not available")
         }
 
-        let uri: String = try args.require(Shared.Constants.MCP.schemaParamURI)
+        let uri: String = try args.require(Shared.Constants.Search.schemaParamURI)
         let formatString = args.format()
-        let format: Search.Index.DocumentFormat = formatString == Shared.Constants.MCP.formatValueMarkdown
+        let format: Search.Index.DocumentFormat = formatString == Shared.Constants.Search.formatValueMarkdown
             ? .markdown : .json
 
         guard let documentContent = try await searchIndex.getDocumentContent(uri: uri, format: format) else {
             throw ToolError.invalidArgument(
-                Shared.Constants.MCP.schemaParamURI,
+                Shared.Constants.Search.schemaParamURI,
                 "Document not found: \(uri)"
             )
         }
@@ -488,7 +488,7 @@ public actor CompositeToolProvider: ToolProvider {
             throw ToolError.invalidArgument("database", "Sample code database not available")
         }
 
-        let framework = args.optional(Shared.Constants.MCP.schemaParamFramework)
+        let framework = args.optional(Shared.Constants.Search.schemaParamFramework)
         let limit = args.limit(default: 50)
 
         let projects = try await sampleDatabase.listProjects(framework: framework, limit: limit)
@@ -527,11 +527,11 @@ public actor CompositeToolProvider: ToolProvider {
             throw ToolError.invalidArgument("database", "Sample code database not available")
         }
 
-        let projectId: String = try args.require(Shared.Constants.MCP.schemaParamProjectId)
+        let projectId: String = try args.require(Shared.Constants.Search.schemaParamProjectId)
 
         guard let project = try await sampleDatabase.getProject(id: projectId) else {
             throw ToolError.invalidArgument(
-                Shared.Constants.MCP.schemaParamProjectId,
+                Shared.Constants.Search.schemaParamProjectId,
                 "Project not found: \(projectId)"
             )
         }
@@ -581,12 +581,12 @@ public actor CompositeToolProvider: ToolProvider {
             throw ToolError.invalidArgument("database", "Sample code database not available")
         }
 
-        let projectId: String = try args.require(Shared.Constants.MCP.schemaParamProjectId)
-        let filePath: String = try args.require(Shared.Constants.MCP.schemaParamFilePath)
+        let projectId: String = try args.require(Shared.Constants.Search.schemaParamProjectId)
+        let filePath: String = try args.require(Shared.Constants.Search.schemaParamFilePath)
 
         guard let file = try await sampleDatabase.getFile(projectId: projectId, path: filePath) else {
             throw ToolError.invalidArgument(
-                Shared.Constants.MCP.schemaParamFilePath,
+                Shared.Constants.Search.schemaParamFilePath,
                 "File not found: \(filePath) in project \(projectId)"
             )
         }
@@ -615,10 +615,10 @@ public actor CompositeToolProvider: ToolProvider {
             throw ToolError.invalidArgument("index", "Documentation index not available")
         }
 
-        let query = args.optional(Shared.Constants.MCP.schemaParamQuery)
-        let kind = args.optional(Shared.Constants.MCP.schemaParamKind)
-        let isAsync = args.optionalBool(Shared.Constants.MCP.schemaParamIsAsync)
-        let framework = args.optional(Shared.Constants.MCP.schemaParamFramework)
+        let query = args.optional(Shared.Constants.Search.schemaParamQuery)
+        let kind = args.optional(Shared.Constants.Search.schemaParamKind)
+        let isAsync = args.optionalBool(Shared.Constants.Search.schemaParamIsAsync)
+        let framework = args.optional(Shared.Constants.Search.schemaParamFramework)
         let limit = args.limit()
 
         let results = try await searchIndex.searchSymbols(
@@ -644,8 +644,8 @@ public actor CompositeToolProvider: ToolProvider {
             throw ToolError.invalidArgument("index", "Documentation index not available")
         }
 
-        let wrapper: String = try args.require(Shared.Constants.MCP.schemaParamWrapper)
-        let framework = args.optional(Shared.Constants.MCP.schemaParamFramework)
+        let wrapper: String = try args.require(Shared.Constants.Search.schemaParamWrapper)
+        let framework = args.optional(Shared.Constants.Search.schemaParamFramework)
         let limit = args.limit()
 
         let results = try await searchIndex.searchPropertyWrappers(
@@ -670,8 +670,8 @@ public actor CompositeToolProvider: ToolProvider {
             throw ToolError.invalidArgument("index", "Documentation index not available")
         }
 
-        let pattern: String = try args.require(Shared.Constants.MCP.schemaParamPattern)
-        let framework = args.optional(Shared.Constants.MCP.schemaParamFramework)
+        let pattern: String = try args.require(Shared.Constants.Search.schemaParamPattern)
+        let framework = args.optional(Shared.Constants.Search.schemaParamFramework)
         let limit = args.limit()
 
         let results = try await searchIndex.searchConcurrencyPatterns(
@@ -695,8 +695,8 @@ public actor CompositeToolProvider: ToolProvider {
             throw ToolError.invalidArgument("index", "Documentation index not available")
         }
 
-        let protocolName: String = try args.require(Shared.Constants.MCP.schemaParamProtocol)
-        let framework = args.optional(Shared.Constants.MCP.schemaParamFramework)
+        let protocolName: String = try args.require(Shared.Constants.Search.schemaParamProtocol)
+        let framework = args.optional(Shared.Constants.Search.schemaParamFramework)
         let limit = args.limit()
 
         let results = try await searchIndex.searchConformances(

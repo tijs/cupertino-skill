@@ -98,7 +98,7 @@ public struct SampleListMarkdownFormatter: ResultFormatter {
                 output += "- **Files:** \(project.fileCount)\n\n"
 
                 if !project.description.isEmpty {
-                    output += "\(project.description.truncated(to: 200))\n\n"
+                    output += "\(project.description.truncated(to: Shared.Constants.Limit.summaryTruncationLength))\n\n"
                 }
             }
         }

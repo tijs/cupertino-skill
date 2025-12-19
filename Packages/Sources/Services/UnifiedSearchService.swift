@@ -104,7 +104,8 @@ public actor UnifiedSearchService {
             swiftEvolutionResults: swiftEvolutionResults,
             swiftOrgResults: swiftOrgResults,
             swiftBookResults: swiftBookResults,
-            packagesResults: packagesResults
+            packagesResults: packagesResults,
+            limit: limit
         )
     }
 

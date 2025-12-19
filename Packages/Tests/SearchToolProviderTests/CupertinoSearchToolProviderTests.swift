@@ -172,9 +172,9 @@ struct CompositeToolProviderInitTests {
 
         // Should have search, list_frameworks, read_document
         #expect(result.tools.count >= 3)
-        #expect(result.tools.contains { $0.name == Shared.Constants.MCP.toolSearch })
-        #expect(result.tools.contains { $0.name == Shared.Constants.MCP.toolListFrameworks })
-        #expect(result.tools.contains { $0.name == Shared.Constants.MCP.toolReadDocument })
+        #expect(result.tools.contains { $0.name == Shared.Constants.Search.toolSearch })
+        #expect(result.tools.contains { $0.name == Shared.Constants.Search.toolListFrameworks })
+        #expect(result.tools.contains { $0.name == Shared.Constants.Search.toolReadDocument })
 
         await index.disconnect()
     }
@@ -188,10 +188,10 @@ struct CompositeToolProviderInitTests {
         let result = try await provider.listTools(cursor: nil)
 
         // Should have sample tools
-        #expect(result.tools.contains { $0.name == Shared.Constants.MCP.toolSearch })
-        #expect(result.tools.contains { $0.name == Shared.Constants.MCP.toolListSamples })
-        #expect(result.tools.contains { $0.name == Shared.Constants.MCP.toolReadSample })
-        #expect(result.tools.contains { $0.name == Shared.Constants.MCP.toolReadSampleFile })
+        #expect(result.tools.contains { $0.name == Shared.Constants.Search.toolSearch })
+        #expect(result.tools.contains { $0.name == Shared.Constants.Search.toolListSamples })
+        #expect(result.tools.contains { $0.name == Shared.Constants.Search.toolReadSample })
+        #expect(result.tools.contains { $0.name == Shared.Constants.Search.toolReadSampleFile })
     }
 
     @Test("Provider initializes with both search index and sample database")

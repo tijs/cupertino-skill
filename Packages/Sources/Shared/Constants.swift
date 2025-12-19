@@ -282,24 +282,126 @@ extension Shared {
                 all,
             ]
 
+            // MARK: - Source Display Names
+
+            /// Display name for Apple Documentation
+            public static let nameAppleDocs = "Apple Documentation"
+            /// Display name for Sample Code
+            public static let nameSamples = "Sample Code"
+            /// Display name for Human Interface Guidelines
+            public static let nameHIG = "Human Interface Guidelines"
+            /// Display name for Apple Archive
+            public static let nameArchive = "Apple Archive"
+            /// Display name for Swift Evolution
+            public static let nameSwiftEvolution = "Swift Evolution"
+            /// Display name for Swift.org
+            public static let nameSwiftOrg = "Swift.org"
+            /// Display name for Swift Book
+            public static let nameSwiftBook = "Swift Book"
+            /// Display name for Swift Packages
+            public static let namePackages = "Swift Packages"
+
             // MARK: - Source Emojis
 
             /// Emoji for Apple Documentation
             public static let emojiAppleDocs = "📚"
             /// Emoji for Sample Code
-            public static let emojiSamples = "💻"
+            public static let emojiSamples = "📦"
             /// Emoji for Human Interface Guidelines
             public static let emojiHIG = "🎨"
             /// Emoji for Apple Archive
             public static let emojiArchive = "📜"
             /// Emoji for Swift Evolution
-            public static let emojiSwiftEvolution = "📝"
+            public static let emojiSwiftEvolution = "🔄"
             /// Emoji for Swift.org
-            public static let emojiSwiftOrg = "🔶"
+            public static let emojiSwiftOrg = "🦅"
             /// Emoji for Swift Book
             public static let emojiSwiftBook = "📖"
             /// Emoji for Swift Packages
             public static let emojiPackages = "📦"
+
+            // MARK: - Source Info (Unified Metadata)
+
+            /// Complete metadata for a search source
+            public struct SourceInfo: Sendable {
+                public let key: String
+                public let name: String
+                public let emoji: String
+
+                public init(key: String, name: String, emoji: String) {
+                    self.key = key
+                    self.name = name
+                    self.emoji = emoji
+                }
+            }
+
+            /// Apple Documentation source info
+            public static let infoAppleDocs = SourceInfo(
+                key: appleDocs,
+                name: nameAppleDocs,
+                emoji: emojiAppleDocs
+            )
+
+            /// Apple Archive source info
+            public static let infoArchive = SourceInfo(
+                key: appleArchive,
+                name: nameArchive,
+                emoji: emojiArchive
+            )
+
+            /// Sample Code source info
+            public static let infoSamples = SourceInfo(
+                key: samples,
+                name: nameSamples,
+                emoji: emojiSamples
+            )
+
+            /// Human Interface Guidelines source info
+            public static let infoHIG = SourceInfo(
+                key: hig,
+                name: nameHIG,
+                emoji: emojiHIG
+            )
+
+            /// Swift Evolution source info
+            public static let infoSwiftEvolution = SourceInfo(
+                key: swiftEvolution,
+                name: nameSwiftEvolution,
+                emoji: emojiSwiftEvolution
+            )
+
+            /// Swift.org source info
+            public static let infoSwiftOrg = SourceInfo(
+                key: swiftOrg,
+                name: nameSwiftOrg,
+                emoji: emojiSwiftOrg
+            )
+
+            /// Swift Book source info
+            public static let infoSwiftBook = SourceInfo(
+                key: swiftBook,
+                name: nameSwiftBook,
+                emoji: emojiSwiftBook
+            )
+
+            /// Swift Packages source info
+            public static let infoPackages = SourceInfo(
+                key: packages,
+                name: namePackages,
+                emoji: emojiPackages
+            )
+
+            /// All source infos in display order
+            public static let allSourceInfos: [SourceInfo] = [
+                infoAppleDocs,
+                infoArchive,
+                infoSamples,
+                infoHIG,
+                infoSwiftEvolution,
+                infoSwiftOrg,
+                infoSwiftBook,
+                infoPackages,
+            ]
         }
 
         // MARK: - URLs
@@ -436,9 +538,10 @@ extension Shared {
             public static let cupertinoDocsToken = "CUPERTINO_DOCS_TOKEN"
         }
 
-        // MARK: - MCP Server
+        // MARK: - Search Constants
 
-        public enum MCP {
+        /// Search-related constants shared by CLI and MCP
+        public enum Search {
             // MARK: Resource URI Schemes
 
             /// Apple documentation resource URI scheme
@@ -763,9 +866,11 @@ extension Shared {
 
             /// No results found message
             public static let messageNoResults = """
-            _No results found. Try different keywords or check available frameworks using `list_frameworks`._
+            _No results found. Try different keywords or check available frameworks \
+            using `list_frameworks`._
 
-            💡 **Try other sources:** Use `source` parameter: samples, hig, apple-archive, swift-evolution, swift-org, swift-book, packages, or `all`.
+            💡 **Try other sources:** Use `source` parameter: samples, hig, apple-archive, \
+            swift-evolution, swift-org, swift-book, packages, or `all`.
             """
 
             /// No frameworks found message
@@ -791,8 +896,10 @@ extension Shared {
             """
 
             /// Tip for platform availability filters
-            public static let tipPlatformFilters =
-                "💡 **Tip:** Filter by platform: `min_ios`, `min_macos`, `min_tvos`, `min_watchos`, `min_visionos`"
+            public static let tipPlatformFilters = """
+            💡 **Tip:** Filter by platform: `\(schemaParamMinIOS)`, `\(schemaParamMinMacOS)`, \
+            `\(schemaParamMinTvOS)`, `\(schemaParamMinWatchOS)`, `\(schemaParamMinVisionOS)`
+            """
 
             /// All available source values (excluding 'all')
             public static let availableSources: [String] = [
@@ -819,8 +926,9 @@ extension Shared {
 
             /// Tip for semantic code search tools (#81)
             public static let tipSemanticSearch = """
-            🔍 **Code patterns:** Use `search_symbols`, `search_property_wrappers`, \
-            `search_concurrency`, or `search_conformances` for semantic code discovery.
+            🔍 **AST search:** Use `\(toolSearchSymbols)`, `\(toolSearchPropertyWrappers)`, \
+            `\(toolSearchConcurrency)`, or `\(toolSearchConformances)` for semantic code \
+            discovery via AST extraction.
             """
 
             /// Generate tip showing other sources for a specific search
@@ -1146,6 +1254,9 @@ extension Shared {
 
             /// Number of top packages to display
             public static let topPackagesDisplay = 20
+
+            /// Maximum length for summary text in search results
+            public static let summaryTruncationLength = 800
         }
 
         // MARK: - Database Schema

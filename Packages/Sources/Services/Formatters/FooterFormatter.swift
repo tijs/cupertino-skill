@@ -79,12 +79,13 @@ public struct SearchFooter: Sendable, FooterProvider {
         var items: [FooterItem] = []
 
         // 1. Source tip (always show)
+        let sources = Shared.Constants.Search.availableSources.joined(separator: ", ")
         let sourceTip = if currentSource == nil {
             // Unified search - show how to narrow
-            "_To narrow results, use `source` parameter: \(Shared.Constants.MCP.availableSources.joined(separator: ", "))_"
+            "_To narrow results, use `source` parameter: \(sources)_"
         } else {
             // Single source - show other sources
-            Shared.Constants.MCP.tipOtherSources(excluding: currentSource)
+            Shared.Constants.Search.tipOtherSources(excluding: currentSource)
         }
         items.append(FooterItem(
             kind: .sourceTip,
@@ -101,7 +102,7 @@ public struct SearchFooter: Sendable, FooterProvider {
         if showSemanticTip {
             items.append(FooterItem(
                 kind: .semanticTip,
-                content: Shared.Constants.MCP.tipSemanticSearch,
+                content: Shared.Constants.Search.tipSemanticSearch,
                 emoji: "🔍"
             ))
         }
@@ -110,7 +111,7 @@ public struct SearchFooter: Sendable, FooterProvider {
         if showPlatformTip {
             items.append(FooterItem(
                 kind: .platformTip,
-                content: Shared.Constants.MCP.tipPlatformFilters,
+                content: Shared.Constants.Search.tipPlatformFilters,
                 emoji: "📱"
             ))
         }

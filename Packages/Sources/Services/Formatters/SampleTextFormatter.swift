@@ -40,7 +40,8 @@ public struct SampleSearchTextFormatter: ResultFormatter {
                 output += "    Files: \(project.fileCount)\n"
 
                 if !project.description.isEmpty {
-                    output += "    \(project.description.truncated(to: 200))\n"
+                    let maxLen = Shared.Constants.Limit.summaryTruncationLength
+                    output += "    \(project.description.truncated(to: maxLen))\n"
                 }
 
                 output += "\n"

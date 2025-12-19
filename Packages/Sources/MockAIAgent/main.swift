@@ -85,7 +85,7 @@ actor MCPClient {
 
         // Read one of the search results
         // Use a known URI from the indexed documentation
-        let testURI = Shared.Constants.MCP.appleDocsScheme + "swiftui/documentation_swiftui_view"
+        let testURI = Shared.Constants.Search.appleDocsScheme + "swiftui/documentation_swiftui_view"
         try await readResource(uri: testURI)
 
         // Shutdown
@@ -320,7 +320,7 @@ actor MCPClient {
     }
 
     private func callSearchTool(query: String) async throws {
-        typealias MCP = Shared.Constants.MCP
+        typealias MCP = Shared.Constants.Search
         print("📨 CLIENT → SERVER: tools/call (\(MCP.toolSearch))")
         print("-".repeating(80))
         print("   Query: \"\(query)\"")

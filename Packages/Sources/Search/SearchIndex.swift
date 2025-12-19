@@ -592,8 +592,9 @@ extension Search {
 
             // Insert metadata with availability
             let metaSql = """
-            INSERT OR REPLACE INTO sample_code_metadata
-            (url, framework, zip_filename, web_url, last_indexed, min_ios, min_macos, min_tvos, min_watchos, min_visionos)
+            INSERT OR REPLACE INTO sample_code_metadata \
+            (url, framework, zip_filename, web_url, last_indexed, \
+            min_ios, min_macos, min_tvos, min_watchos, min_visionos) \
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """
 
@@ -971,10 +972,10 @@ extension Search {
 
             // Insert metadata with JSON data and availability
             let metaSql = """
-            INSERT OR REPLACE INTO docs_metadata
-            (uri, source, framework, language, file_path, content_hash, last_crawled, word_count, source_type, package_id, json_data,
-             min_ios, min_macos, min_tvos, min_watchos, min_visionos, availability_source)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            INSERT OR REPLACE INTO docs_metadata \
+            (uri, source, framework, language, file_path, content_hash, last_crawled, word_count, \
+            source_type, package_id, json_data, min_ios, min_macos, min_tvos, min_watchos, \
+            min_visionos, availability_source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """
 
             var metaStatement: OpaquePointer?
@@ -1275,10 +1276,10 @@ extension Search {
 
             // Insert metadata with json_data and availability columns
             let metaSql = """
-            INSERT OR REPLACE INTO docs_metadata
-            (uri, source, framework, language, file_path, content_hash, last_crawled, word_count, source_type, json_data,
-             min_ios, min_macos, min_tvos, min_watchos, min_visionos, availability_source)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            INSERT OR REPLACE INTO docs_metadata \
+            (uri, source, framework, language, file_path, content_hash, last_crawled, word_count, \
+            source_type, json_data, min_ios, min_macos, min_tvos, min_watchos, min_visionos, \
+            availability_source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """
 
             var metaStatement: OpaquePointer?
@@ -1452,9 +1453,12 @@ extension Search {
                 sqlite3_bind_int(statement, 9, symbol.isPublic ? 1 : 0)
                 sqlite3_bind_int(statement, 10, symbol.isStatic ? 1 : 0)
 
-                let attributesStr = symbol.attributes.isEmpty ? nil : symbol.attributes.joined(separator: ",")
-                let conformancesStr = symbol.conformances.isEmpty ? nil : symbol.conformances.joined(separator: ",")
-                let genericParamsStr = symbol.genericParameters.isEmpty ? nil : symbol.genericParameters.joined(separator: ",")
+                let attributesStr = symbol.attributes.isEmpty
+                    ? nil : symbol.attributes.joined(separator: ",")
+                let conformancesStr = symbol.conformances.isEmpty
+                    ? nil : symbol.conformances.joined(separator: ",")
+                let genericParamsStr = symbol.genericParameters.isEmpty
+                    ? nil : symbol.genericParameters.joined(separator: ",")
 
                 if let attrs = attributesStr {
                     sqlite3_bind_text(statement, 11, (attrs as NSString).utf8String, -1, nil)
@@ -2445,8 +2449,6 @@ extension Search {
 
                 // Apply source-based ranking multiplier with intent-aware boosting (#81)
                 // Uses queryIntent to determine which sources should be prioritized
-                // swiftlint:disable:next nesting
-                // Justification: typealias used inline to reference long constant path concisely
                 typealias SourcePrefix = Shared.Constants.SourcePrefix
                 let sourceMultiplier: Double = {
                     // Penalize release notes - they match almost every query but rarely what user wants
@@ -2708,8 +2710,97 @@ extension Search {
                 results.insert(frameworkRoot, at: 0)
             }
 
+            // (#81) Attach matching symbols to results that have them
+            if !symbolMatchURIs.isEmpty {
+                let symbolsByURI = try await fetchMatchingSymbols(query: sanitizedQuery, uris: symbolMatchURIs)
+                results = results.map { result in
+                    if let symbols = symbolsByURI[result.uri], !symbols.isEmpty {
+                        return Search.Result(
+                            id: result.id,
+                            uri: result.uri,
+                            source: result.source,
+                            framework: result.framework,
+                            title: result.title,
+                            summary: result.summary,
+                            filePath: result.filePath,
+                            wordCount: result.wordCount,
+                            rank: result.rank,
+                            availability: result.availability,
+                            matchedSymbols: symbols
+                        )
+                    }
+                    return result
+                }
+            }
+
             // Trim to requested limit after applying boosts
             return Array(results.prefix(limit))
+        }
+
+        /// Fetch matching symbols for a set of document URIs (#81)
+        /// Returns dictionary mapping URI to array of matched symbols
+        private func fetchMatchingSymbols(query: String, uris: Set<String>) async throws -> [String: [MatchedSymbol]] {
+            guard let database, !uris.isEmpty else { return [:] }
+
+            // Strip FTS5 quotes from sanitized query for LIKE pattern
+            let cleanQuery = query.replacingOccurrences(of: "\"", with: "")
+            let likePattern = "%\(cleanQuery)%"
+
+            // Build placeholders for IN clause
+            let placeholders = uris.map { _ in "?" }.joined(separator: ", ")
+            let sql = """
+            SELECT doc_uri, kind, name, signature, is_async
+            FROM doc_symbols
+            WHERE doc_uri IN (\(placeholders))
+              AND (name LIKE ? OR attributes LIKE ? OR conformances LIKE ? OR signature LIKE ?)
+            ORDER BY doc_uri, name
+            LIMIT 500;
+            """
+
+            var statement: OpaquePointer?
+            defer { sqlite3_finalize(statement) }
+
+            guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK else {
+                return [:]
+            }
+
+            // Bind URI parameters
+            var bindIndex: Int32 = 1
+            for uri in uris {
+                sqlite3_bind_text(statement, bindIndex, (uri as NSString).utf8String, -1, nil)
+                bindIndex += 1
+            }
+
+            // Bind LIKE patterns
+            sqlite3_bind_text(statement, bindIndex, (likePattern as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, bindIndex + 1, (likePattern as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, bindIndex + 2, (likePattern as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, bindIndex + 3, (likePattern as NSString).utf8String, -1, nil)
+
+            var result: [String: [MatchedSymbol]] = [:]
+            while sqlite3_step(statement) == SQLITE_ROW {
+                guard let uriPtr = sqlite3_column_text(statement, 0),
+                      let kindPtr = sqlite3_column_text(statement, 1),
+                      let namePtr = sqlite3_column_text(statement, 2) else {
+                    continue
+                }
+
+                let uri = String(cString: uriPtr)
+                let kind = String(cString: kindPtr)
+                let name = String(cString: namePtr)
+                let signature = sqlite3_column_text(statement, 3).map { String(cString: $0) }
+                let isAsync = sqlite3_column_int(statement, 4) != 0
+
+                let symbol = MatchedSymbol(kind: kind, name: name, signature: signature, isAsync: isAsync)
+                result[uri, default: []].append(symbol)
+            }
+
+            // Limit symbols per document to top 3 for readability
+            for (uri, symbols) in result {
+                result[uri] = Array(symbols.prefix(3))
+            }
+
+            return result
         }
 
         /// Search doc_symbols and return matching document URIs (#81)
@@ -2717,13 +2808,15 @@ extension Search {
         private func searchSymbolsForURIs(query: String, limit: Int) async throws -> Set<String> {
             guard let database else { return [] }
 
-            // Skip symbol search for very short queries or common words
-            let trimmed = query.trimmingCharacters(in: .whitespaces)
-            guard trimmed.count >= 3 else { return [] }
+            // Strip FTS5 quotes and trim whitespace for LIKE pattern
+            let cleanQuery = query
+                .replacingOccurrences(of: "\"", with: "")
+                .trimmingCharacters(in: .whitespaces)
+            guard cleanQuery.count >= 3 else { return [] }
 
             // Search doc_symbols directly using LIKE patterns
             // Matches in: symbol name, attributes (@Observable), conformances (Sendable), signature (async)
-            let likePattern = "%\(trimmed)%"
+            let likePattern = "%\(cleanQuery)%"
             let sql = """
             SELECT DISTINCT doc_uri
             FROM doc_symbols

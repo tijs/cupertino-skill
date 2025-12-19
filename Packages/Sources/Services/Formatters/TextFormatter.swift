@@ -53,6 +53,11 @@ public struct TextSearchResultFormatter: ResultFormatter {
                let availability = result.availabilityString, !availability.isEmpty {
                 output += "    Availability: \(availability)\n"
             }
+            // (#81) Show matched symbols from AST extraction
+            if let symbols = result.matchedSymbols, !symbols.isEmpty {
+                let symbolStr = symbols.map(\.displayString).joined(separator: ", ")
+                output += "    Symbols: \(symbolStr)\n"
+            }
 
             if !result.cleanedSummary.isEmpty {
                 output += "    \(result.cleanedSummary)\n"
