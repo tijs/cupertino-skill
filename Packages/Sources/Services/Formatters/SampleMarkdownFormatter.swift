@@ -8,10 +8,12 @@ import Shared
 public struct SampleSearchMarkdownFormatter: ResultFormatter {
     private let query: String
     private let framework: String?
+    private let teasers: TeaserResults?
 
-    public init(query: String, framework: String? = nil) {
+    public init(query: String, framework: String? = nil, teasers: TeaserResults? = nil) {
         self.query = query
         self.framework = framework
+        self.teasers = teasers
     }
 
     public func format(_ result: SampleSearchResult) -> String {
@@ -54,10 +56,12 @@ public struct SampleSearchMarkdownFormatter: ResultFormatter {
             }
         }
 
-        // Always remind AI about other sources
-        output += "\n\n---\n\n"
-        output += Shared.Constants.MCP.tipOtherSources(excluding: Shared.Constants.SourcePrefix.samples)
-        output += "\n"
+        // Footer: tips and guidance
+        let footer = SearchFooter.singleSource(
+            Shared.Constants.SourcePrefix.samples,
+            teasers: teasers
+        )
+        output += footer.formatMarkdown()
 
         return output
     }

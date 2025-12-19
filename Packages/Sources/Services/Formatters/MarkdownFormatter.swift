@@ -10,15 +10,21 @@ public struct MarkdownSearchResultFormatter: ResultFormatter {
     private let query: String
     private let filters: SearchFilters?
     private let config: SearchResultFormatConfig
+    private let teasers: TeaserResults?
+    private let showPlatformTip: Bool
 
     public init(
         query: String,
         filters: SearchFilters? = nil,
-        config: SearchResultFormatConfig = .mcpDefault
+        config: SearchResultFormatConfig = .mcpDefault,
+        teasers: TeaserResults? = nil,
+        showPlatformTip: Bool = true
     ) {
         self.query = query
         self.filters = filters
         self.config = config
+        self.teasers = teasers
+        self.showPlatformTip = showPlatformTip
     }
 
     public func format(_ results: [Search.Result]) -> String {
@@ -92,10 +98,13 @@ public struct MarkdownSearchResultFormatter: ResultFormatter {
             }
         }
 
-        // Always remind AI about other sources (use same source we showed at top)
-        md += "\n\n---\n\n"
-        md += Shared.Constants.MCP.tipOtherSources(excluding: searchedSource)
-        md += "\n"
+        // Footer: teasers, tips, and guidance
+        let footer = SearchFooter.singleSource(
+            searchedSource,
+            teasers: teasers,
+            showPlatformTip: showPlatformTip
+        )
+        md += footer.formatMarkdown()
 
         return md
     }
@@ -107,10 +116,16 @@ public struct MarkdownSearchResultFormatter: ResultFormatter {
 public struct HIGMarkdownFormatter: ResultFormatter {
     private let query: HIGQuery
     private let config: SearchResultFormatConfig
+    private let teasers: TeaserResults?
 
-    public init(query: HIGQuery, config: SearchResultFormatConfig = .mcpDefault) {
+    public init(
+        query: HIGQuery,
+        config: SearchResultFormatConfig = .mcpDefault,
+        teasers: TeaserResults? = nil
+    ) {
         self.query = query
         self.config = config
+        self.teasers = teasers
     }
 
     public func format(_ results: [Search.Result]) -> String {
@@ -161,10 +176,12 @@ public struct HIGMarkdownFormatter: ResultFormatter {
             }
         }
 
-        // Always remind AI about other sources
-        md += "\n\n---\n\n"
-        md += Shared.Constants.MCP.tipOtherSources(excluding: Shared.Constants.SourcePrefix.hig)
-        md += "\n"
+        // Footer: tips and guidance
+        let footer = SearchFooter.singleSource(
+            Shared.Constants.SourcePrefix.hig,
+            teasers: teasers
+        )
+        md += footer.formatMarkdown()
 
         return md
     }
@@ -331,10 +348,9 @@ public struct UnifiedSearchMarkdownFormatter: ResultFormatter {
             md += "_No results found across any source._\n\n"
         }
 
-        // Remind AI what it searched and how to narrow results
-        md += "---\n\n"
-        md += "_To narrow results, use `source` parameter: "
-        md += "\(Shared.Constants.MCP.availableSources.joined(separator: ", "))_\n"
+        // Footer: tips and guidance
+        let footer = SearchFooter.unified()
+        md += footer.formatMarkdown()
 
         return md
     }

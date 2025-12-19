@@ -444,6 +444,20 @@ extension Shared {
             /// Read sample file tool name
             public static let toolReadSampleFile = "read_sample_file"
 
+            // MARK: Semantic Search Tool Names (#81)
+
+            /// Search symbols tool name (semantic code search)
+            public static let toolSearchSymbols = "search_symbols"
+
+            /// Search property wrappers tool name
+            public static let toolSearchPropertyWrappers = "search_property_wrappers"
+
+            /// Search concurrency patterns tool name
+            public static let toolSearchConcurrency = "search_concurrency"
+
+            /// Search protocol conformances tool name
+            public static let toolSearchConformances = "search_conformances"
+
             // MARK: Resource Template URIs
 
             /// Apple documentation resource template
@@ -548,6 +562,82 @@ extension Shared {
             Requires project_id and file_path parameters. File paths are relative to project root.
             """
 
+            // MARK: Semantic Search Tool Descriptions (#81)
+
+            /// Search symbols tool description
+            public static let toolSearchSymbolsDescription = """
+            Search Swift symbols by type and name pattern. Uses SwiftSyntax AST extraction. \
+            Find structs, classes, actors, protocols, functions, properties by kind and name.
+
+            **Symbol kinds:** struct, class, actor, enum, protocol, extension, function, property, typealias
+
+            **Parameters:**
+            - query: Symbol name pattern (partial match supported)
+            - kind: Filter by symbol kind (optional)
+            - is_async: Filter async functions only (optional)
+            - framework: Filter by framework (optional)
+            - limit: Maximum results (default 20)
+
+            **Examples:**
+            - Find all actors: kind=actor
+            - Find async functions: is_async=true
+            - Find View structs: query=View, kind=struct
+            """
+
+            /// Search property wrappers tool description
+            public static let toolSearchPropertyWrappersDescription = """
+            Find Swift property wrapper usage patterns across documentation and samples. \
+            Essential for discovering SwiftUI state management patterns.
+
+            **Common wrappers:** @State, @Binding, @StateObject, @ObservedObject, @Observable, \
+            @Environment, @EnvironmentObject, @Published, @AppStorage, @MainActor, @Sendable
+
+            **Parameters:**
+            - wrapper: Property wrapper name (with or without @)
+            - framework: Filter by framework (optional)
+            - limit: Maximum results (default 20)
+
+            **Examples:**
+            - Find @Observable usage: wrapper=Observable
+            - Find @MainActor usage: wrapper=MainActor
+            """
+
+            /// Search concurrency patterns tool description
+            public static let toolSearchConcurrencyDescription = """
+            Find Swift concurrency patterns: async/await, actors, Sendable conformances. \
+            Discover real-world concurrency usage in Apple documentation and samples.
+
+            **Pattern options:** async, actor, sendable, mainactor, task, asyncsequence
+
+            **Parameters:**
+            - pattern: Concurrency pattern to search for
+            - framework: Filter by framework (optional)
+            - limit: Maximum results (default 20)
+
+            **Examples:**
+            - Find async functions: pattern=async
+            - Find actor declarations: pattern=actor
+            - Find Sendable types: pattern=sendable
+            """
+
+            /// Search conformances tool description
+            public static let toolSearchConformancesDescription = """
+            Find types by protocol conformance. Discover how protocols are implemented \
+            across Apple documentation and sample code.
+
+            **Common protocols:** View, Codable, Hashable, Equatable, Identifiable, \
+            ObservableObject, Sendable, AsyncSequence, Error
+
+            **Parameters:**
+            - protocol: Protocol name to search for
+            - framework: Filter by framework (optional)
+            - limit: Maximum results (default 20)
+
+            **Examples:**
+            - Find View conformances: protocol=View
+            - Find Sendable types: protocol=Sendable
+            """
+
             // MARK: JSON Schema
 
             /// JSON Schema type: object
@@ -606,6 +696,23 @@ extension Shared {
 
             /// JSON Schema parameter: min_visionos
             public static let schemaParamMinVisionOS = "min_visionos"
+
+            // MARK: Semantic Search Parameters (#81)
+
+            /// JSON Schema parameter: kind (symbol kind)
+            public static let schemaParamKind = "kind"
+
+            /// JSON Schema parameter: is_async (async functions filter)
+            public static let schemaParamIsAsync = "is_async"
+
+            /// JSON Schema parameter: wrapper (property wrapper name)
+            public static let schemaParamWrapper = "wrapper"
+
+            /// JSON Schema parameter: pattern (concurrency pattern)
+            public static let schemaParamPattern = "pattern"
+
+            /// JSON Schema parameter: protocol (protocol conformance)
+            public static let schemaParamProtocol = "protocol"
 
             /// Format value: json
             public static let formatValueJSON = "json"
@@ -677,6 +784,12 @@ extension Shared {
             /// Comprehensive tips showing all available search capabilities
             public static let tipSearchCapabilities = """
             💡 **Dig deeper:** Use `source` parameter to search: \(availableSources.joined(separator: ", ")), or `all`.
+            """
+
+            /// Tip for semantic code search tools (#81)
+            public static let tipSemanticSearch = """
+            🔍 **Code patterns:** Use `search_symbols`, `search_property_wrappers`, \
+            `search_concurrency`, or `search_conformances` for semantic code discovery.
             """
 
             /// Generate tip showing other sources for a specific search

@@ -148,11 +148,9 @@ public struct UnifiedSearchTextFormatter: ResultFormatter {
             output += "No results found across any source.\n\n"
         }
 
-        // Teaser about diving deeper into specific sources
-        output += String(repeating: "-", count: 40) + "\n"
-        output += "Tip: Use --source to focus on: "
-        output += Shared.Constants.MCP.availableSources.joined(separator: ", ")
-        output += "\n"
+        // Footer: tips and guidance
+        let footer = SearchFooter.unified()
+        output += footer.formatText()
 
         return output
     }

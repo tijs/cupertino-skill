@@ -229,16 +229,32 @@ struct SearchCommand: AsyncParsableCommand {
             ))
         }
 
+        // Fetch teaser results from other sources
+        let teasers = try await ServiceContainer.withTeaserService(
+            searchDbPath: searchDb,
+            sampleDbPath: resolveSampleDbPath()
+        ) { service in
+            await service.fetchAllTeasers(
+                query: query,
+                framework: framework,
+                currentSource: Shared.Constants.SourcePrefix.samples,
+                includeArchive: false
+            )
+        }
+
         // Output results using formatters
         switch format {
         case .text:
             let formatter = SampleSearchTextFormatter(query: query, framework: framework)
-            Log.output(formatter.format(result))
+            var output = formatter.format(result)
+            let teaserFormatter = TeaserTextFormatter()
+            output += teaserFormatter.format(teasers)
+            Log.output(output)
         case .json:
             let formatter = SampleSearchJSONFormatter(query: query, framework: framework)
             Log.output(formatter.format(result))
         case .markdown:
-            let formatter = SampleSearchMarkdownFormatter(query: query, framework: framework)
+            let formatter = SampleSearchMarkdownFormatter(query: query, framework: framework, teasers: teasers)
             Log.output(formatter.format(result))
         }
     }
@@ -257,17 +273,33 @@ struct SearchCommand: AsyncParsableCommand {
             ))
         }
 
+        // Fetch teaser results from other sources
+        let teasers = try await ServiceContainer.withTeaserService(
+            searchDbPath: searchDb,
+            sampleDbPath: resolveSampleDbPath()
+        ) { service in
+            await service.fetchAllTeasers(
+                query: query,
+                framework: framework,
+                currentSource: Shared.Constants.SourcePrefix.hig,
+                includeArchive: false
+            )
+        }
+
         let higQuery = HIGQuery(text: query, platform: nil, category: nil)
 
         switch format {
         case .text:
             let formatter = HIGTextFormatter(query: higQuery)
-            Log.output(formatter.format(results))
+            var output = formatter.format(results)
+            let teaserFormatter = TeaserTextFormatter()
+            output += teaserFormatter.format(teasers)
+            Log.output(output)
         case .json:
             let formatter = HIGJSONFormatter(query: higQuery)
             Log.output(formatter.format(results))
         case .markdown:
-            let formatter = HIGMarkdownFormatter(query: higQuery, config: .cliDefault)
+            let formatter = HIGMarkdownFormatter(query: higQuery, config: .cliDefault, teasers: teasers)
             Log.output(formatter.format(results))
         }
     }

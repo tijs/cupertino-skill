@@ -113,6 +113,49 @@ public actor CompositeToolProvider: ToolProvider {
             ))
         }
 
+        // Semantic search tools (#81)
+        if searchIndex != nil {
+            allTools.append(Tool(
+                name: Shared.Constants.MCP.toolSearchSymbols,
+                description: Shared.Constants.MCP.toolSearchSymbolsDescription,
+                inputSchema: JSONSchema(
+                    type: Shared.Constants.MCP.schemaTypeObject,
+                    properties: nil,
+                    required: []
+                )
+            ))
+
+            allTools.append(Tool(
+                name: Shared.Constants.MCP.toolSearchPropertyWrappers,
+                description: Shared.Constants.MCP.toolSearchPropertyWrappersDescription,
+                inputSchema: JSONSchema(
+                    type: Shared.Constants.MCP.schemaTypeObject,
+                    properties: nil,
+                    required: [Shared.Constants.MCP.schemaParamWrapper]
+                )
+            ))
+
+            allTools.append(Tool(
+                name: Shared.Constants.MCP.toolSearchConcurrency,
+                description: Shared.Constants.MCP.toolSearchConcurrencyDescription,
+                inputSchema: JSONSchema(
+                    type: Shared.Constants.MCP.schemaTypeObject,
+                    properties: nil,
+                    required: [Shared.Constants.MCP.schemaParamPattern]
+                )
+            ))
+
+            allTools.append(Tool(
+                name: Shared.Constants.MCP.toolSearchConformances,
+                description: Shared.Constants.MCP.toolSearchConformancesDescription,
+                inputSchema: JSONSchema(
+                    type: Shared.Constants.MCP.schemaTypeObject,
+                    properties: nil,
+                    required: [Shared.Constants.MCP.schemaParamProtocol]
+                )
+            ))
+        }
+
         return ListToolsResult(tools: allTools)
     }
 
@@ -132,6 +175,14 @@ public actor CompositeToolProvider: ToolProvider {
             return try await handleReadSample(args: args)
         case Shared.Constants.MCP.toolReadSampleFile:
             return try await handleReadSampleFile(args: args)
+        case Shared.Constants.MCP.toolSearchSymbols:
+            return try await handleSearchSymbols(args: args)
+        case Shared.Constants.MCP.toolSearchPropertyWrappers:
+            return try await handleSearchPropertyWrappers(args: args)
+        case Shared.Constants.MCP.toolSearchConcurrency:
+            return try await handleSearchConcurrency(args: args)
+        case Shared.Constants.MCP.toolSearchConformances:
+            return try await handleSearchConformances(args: args)
         default:
             throw ToolError.unknownTool(name)
         }
@@ -267,13 +318,10 @@ public actor CompositeToolProvider: ToolProvider {
         let formatter = MarkdownSearchResultFormatter(
             query: query,
             filters: filters,
-            config: config
+            config: config,
+            teasers: teasers
         )
-        var markdown = formatter.format(results)
-
-        // Append teaser sections if available (using shared formatter)
-        let teaserFormatter = TeaserMarkdownFormatter()
-        markdown += teaserFormatter.format(teasers)
+        let markdown = formatter.format(results)
 
         return CallToolResult(content: [.text(TextContent(text: markdown))])
     }
@@ -317,8 +365,16 @@ public actor CompositeToolProvider: ToolProvider {
             limit: limit
         ))
 
+        // Fetch teaser results from other sources
+        let teasers = await fetchAllTeasers(
+            query: query,
+            framework: framework,
+            currentSource: Shared.Constants.SourcePrefix.samples,
+            includeArchive: false
+        )
+
         // Use shared formatter
-        let formatter = SampleSearchMarkdownFormatter(query: query, framework: framework)
+        let formatter = SampleSearchMarkdownFormatter(query: query, framework: framework, teasers: teasers)
         let markdown = formatter.format(result)
 
         return CallToolResult(content: [.text(TextContent(text: markdown))])
@@ -345,9 +401,17 @@ public actor CompositeToolProvider: ToolProvider {
             includeArchive: false
         ))
 
+        // Fetch teaser results from other sources
+        let teasers = await fetchAllTeasers(
+            query: query,
+            framework: framework,
+            currentSource: Shared.Constants.SourcePrefix.hig,
+            includeArchive: false
+        )
+
         // Use shared formatter
         let higQuery = HIGQuery(text: query, platform: nil, category: nil)
-        let formatter = HIGMarkdownFormatter(query: higQuery, config: .mcpDefault)
+        let formatter = HIGMarkdownFormatter(query: higQuery, config: .mcpDefault, teasers: teasers)
         let markdown = formatter.format(results)
 
         return CallToolResult(content: [.text(TextContent(text: markdown))])
@@ -542,6 +606,178 @@ public actor CompositeToolProvider: ToolProvider {
         markdown += "```\n"
 
         return CallToolResult(content: [.text(TextContent(text: markdown))])
+    }
+
+    // MARK: - Semantic Search Handlers (#81)
+
+    private func handleSearchSymbols(args: ArgumentExtractor) async throws -> CallToolResult {
+        guard let searchIndex else {
+            throw ToolError.invalidArgument("index", "Documentation index not available")
+        }
+
+        let query = args.optional(Shared.Constants.MCP.schemaParamQuery)
+        let kind = args.optional(Shared.Constants.MCP.schemaParamKind)
+        let isAsync = args.optionalBool(Shared.Constants.MCP.schemaParamIsAsync)
+        let framework = args.optional(Shared.Constants.MCP.schemaParamFramework)
+        let limit = args.limit()
+
+        let results = try await searchIndex.searchSymbols(
+            query: query,
+            kind: kind,
+            isAsync: isAsync,
+            framework: framework,
+            limit: limit
+        )
+
+        let markdown = formatSymbolResults(
+            results: results,
+            title: "Symbol Search Results",
+            query: query,
+            filters: ["kind": kind, "is_async": isAsync.map { String($0) }, "framework": framework]
+        )
+
+        return CallToolResult(content: [.text(TextContent(text: markdown))])
+    }
+
+    private func handleSearchPropertyWrappers(args: ArgumentExtractor) async throws -> CallToolResult {
+        guard let searchIndex else {
+            throw ToolError.invalidArgument("index", "Documentation index not available")
+        }
+
+        let wrapper: String = try args.require(Shared.Constants.MCP.schemaParamWrapper)
+        let framework = args.optional(Shared.Constants.MCP.schemaParamFramework)
+        let limit = args.limit()
+
+        let results = try await searchIndex.searchPropertyWrappers(
+            wrapper: wrapper,
+            framework: framework,
+            limit: limit
+        )
+
+        let normalizedWrapper = wrapper.hasPrefix("@") ? wrapper : "@\(wrapper)"
+        let markdown = formatSymbolResults(
+            results: results,
+            title: "Property Wrapper: \(normalizedWrapper)",
+            query: wrapper,
+            filters: ["wrapper": wrapper, "framework": framework]
+        )
+
+        return CallToolResult(content: [.text(TextContent(text: markdown))])
+    }
+
+    private func handleSearchConcurrency(args: ArgumentExtractor) async throws -> CallToolResult {
+        guard let searchIndex else {
+            throw ToolError.invalidArgument("index", "Documentation index not available")
+        }
+
+        let pattern: String = try args.require(Shared.Constants.MCP.schemaParamPattern)
+        let framework = args.optional(Shared.Constants.MCP.schemaParamFramework)
+        let limit = args.limit()
+
+        let results = try await searchIndex.searchConcurrencyPatterns(
+            pattern: pattern,
+            framework: framework,
+            limit: limit
+        )
+
+        let markdown = formatSymbolResults(
+            results: results,
+            title: "Concurrency Pattern: \(pattern)",
+            query: pattern,
+            filters: ["pattern": pattern, "framework": framework]
+        )
+
+        return CallToolResult(content: [.text(TextContent(text: markdown))])
+    }
+
+    private func handleSearchConformances(args: ArgumentExtractor) async throws -> CallToolResult {
+        guard let searchIndex else {
+            throw ToolError.invalidArgument("index", "Documentation index not available")
+        }
+
+        let protocolName: String = try args.require(Shared.Constants.MCP.schemaParamProtocol)
+        let framework = args.optional(Shared.Constants.MCP.schemaParamFramework)
+        let limit = args.limit()
+
+        let results = try await searchIndex.searchConformances(
+            protocolName: protocolName,
+            framework: framework,
+            limit: limit
+        )
+
+        let markdown = formatSymbolResults(
+            results: results,
+            title: "Protocol Conformance: \(protocolName)",
+            query: protocolName,
+            filters: ["protocol": protocolName, "framework": framework]
+        )
+
+        return CallToolResult(content: [.text(TextContent(text: markdown))])
+    }
+
+    /// Format symbol search results as markdown
+    private func formatSymbolResults(
+        results: [Search.Index.SymbolSearchResult],
+        title: String,
+        query: String?,
+        filters: [String: String?]
+    ) -> String {
+        var markdown = "# \(title)\n\n"
+
+        // Show active filters
+        let activeFilters = filters.compactMapValues { $0 }
+        if !activeFilters.isEmpty {
+            markdown += "**Filters:** "
+            markdown += activeFilters.map { "\($0.key)=\($0.value)" }.joined(separator: ", ")
+            markdown += "\n\n"
+        }
+
+        if results.isEmpty {
+            markdown += "_No symbols found matching your criteria._\n\n"
+            markdown += "💡 **Tips:**\n"
+            markdown += "- Try a broader search pattern\n"
+            markdown += "- Check available symbol kinds: struct, class, actor, enum, protocol, function, property\n"
+            return markdown
+        }
+
+        markdown += "Found **\(results.count)** symbols:\n\n"
+
+        // Group by document for better organization
+        var byDocument: [String: [(Search.Index.SymbolSearchResult, Int)]] = [:]
+        for (index, result) in results.enumerated() {
+            byDocument[result.docUri, default: []].append((result, index))
+        }
+
+        for (docUri, symbols) in byDocument.sorted(by: { $0.key < $1.key }) {
+            let firstSymbol = symbols[0].0
+            markdown += "### \(firstSymbol.docTitle)\n"
+            markdown += "_Framework: \(firstSymbol.framework.isEmpty ? "unknown" : firstSymbol.framework)_ "
+            markdown += "| URI: `\(docUri)`\n\n"
+
+            for (symbol, _) in symbols {
+                markdown += "- **\(symbol.symbolKind)** `\(symbol.symbolName)`"
+                if symbol.isAsync {
+                    markdown += " `async`"
+                }
+                if let sig = symbol.signature, !sig.isEmpty {
+                    let truncatedSig = sig.count > 60 ? String(sig.prefix(60)) + "..." : sig
+                    markdown += "\n  - Signature: `\(truncatedSig)`"
+                }
+                if let attrs = symbol.attributes, !attrs.isEmpty {
+                    markdown += "\n  - Attributes: \(attrs)"
+                }
+                if let conforms = symbol.conformances, !conforms.isEmpty {
+                    markdown += "\n  - Conforms to: \(conforms)"
+                }
+                markdown += "\n"
+            }
+            markdown += "\n"
+        }
+
+        markdown += "---\n"
+        markdown += "💡 Use `read_document` with the URI to get the full documentation.\n"
+
+        return markdown
     }
 
     // MARK: - Helpers
