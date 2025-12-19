@@ -72,6 +72,7 @@ public enum PriorityPackagesCatalog {
     /// Cached catalog data (thread-safe via actor isolation)
     private actor Cache {
         var catalog: PriorityPackagesCatalogJSON?
+        var useBundledOnly = false
 
         func get() -> PriorityPackagesCatalogJSON? {
             catalog
@@ -84,6 +85,15 @@ public enum PriorityPackagesCatalog {
         func clear() {
             catalog = nil
         }
+
+        func setUseBundledOnly(_ value: Bool) {
+            useBundledOnly = value
+            catalog = nil // Clear cache when changing mode
+        }
+
+        func shouldSkipUserFile() -> Bool {
+            useBundledOnly
+        }
     }
 
     private static let cache = Cache()
@@ -93,14 +103,21 @@ public enum PriorityPackagesCatalog {
         await cache.clear()
     }
 
+    /// Force using bundled file only (for testing)
+    /// Call with `true` before tests, `false` after to restore normal behavior
+    public static func setUseBundledOnly(_ bundledOnly: Bool) async {
+        await cache.setUseBundledOnly(bundledOnly)
+    }
+
     /// Load catalog - checks user file first, falls back to bundled resource
     private static func loadCatalog() async -> PriorityPackagesCatalogJSON {
         if let cached = await cache.get() {
             return cached
         }
 
-        // Try user selections file first
-        if let userCatalog = loadUserCatalog() {
+        // Try user selections file first (unless testing with bundled only)
+        let skipUserFile = await cache.shouldSkipUserFile()
+        if !skipUserFile, let userCatalog = loadUserCatalog() {
             await cache.set(userCatalog)
             return userCatalog
         }

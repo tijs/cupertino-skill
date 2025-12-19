@@ -1,3 +1,48 @@
+## 0.8.0 (2025-12-19)
+
+### Added
+- **Doctor Command Enhanced** - Package diagnostics (#81)
+  - Shows user selections file status and package count
+  - Shows downloaded README count
+  - Warns about orphaned READMEs (packages no longer selected)
+  - Displays priority package breakdown (Apple vs ecosystem)
+
+### Changed
+- **Code Quality Improvements** (#81)
+  - Consolidated magic numbers into `Shared.Constants` (timeouts, delays, limits, intervals)
+  - Added `Timeout`, `Delay`, `Limit`, `Interval` namespaces for better organization
+  - Replaced hardcoded values across WKWebCrawler, HIGCrawler, and other modules
+- **PriorityPackagesCatalog** - Made fields optional for TUI compatibility
+  - `appleOfficial` tier now optional (TUI only saves ecosystem tier)
+  - Stats fields `totalCriticalApplePackages` and `totalEcosystemPackages` now optional
+
+### Fixed
+- **Package-docs fetch now reads user selections** (#107)
+  - `cupertino fetch --type package-docs` now loads from `~/.cupertino/selected-packages.json`
+  - Falls back to bundled `priority-packages.json` if user file doesn't exist
+  - TUI package selections are now respected by fetch command
+
+### Related Issues
+- Closes #81, #107
+
+---
+
+## 0.7.0 (2025-12-15)
+
+### Added
+- **Unified Search with Source Parameter**
+  - New `--source` parameter: `apple-docs`, `samples`, `hig`, `apple-archive`, `swift-evolution`, `swift-org`, `swift-book`, `packages`, `all`
+  - Teasers show results from alternate sources in every search response
+  - Source-aware messaging tells AI exactly what was searched
+- **Documentation Database Expanded** - 302,424 docs across 307 frameworks (up from 234k/287)
+
+### Changed
+- Consolidated multiple search tools into one unified search tool
+- Shared formatters between MCP and CLI for consistent output
+- Shared TeaserFormatter and constants eliminate hardcoding
+
+---
+
 ## 0.6.0 (2025-12-12)
 
 ### Added
@@ -29,17 +74,6 @@
 - Closes #99
 
 ---
-
-## 0.7.0 (2025-12-15)
-
-### Added
--
-
-### Changed
--
-
-### Fixed
--
 
 ## 0.5.0 (2025-12-11)
 
