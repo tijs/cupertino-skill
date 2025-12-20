@@ -22,6 +22,17 @@ Cupertino provides these MCP tools for AI agents to search and read documentatio
 | [read_sample](read_sample/) | Read sample project README |
 | [read_sample_file](read_sample_file/) | Read specific source file from a sample |
 
+### Semantic Search Tools (AST-powered)
+
+These tools query SwiftSyntax-extracted symbol data for semantic code search.
+
+| Tool | Description |
+|------|-------------|
+| [search_symbols](search_symbols/) | Search by symbol type (class, struct, actor, function) and name |
+| [search_property_wrappers](search_property_wrappers/) | Find @State, @Observable, @MainActor usage patterns |
+| [search_concurrency](search_concurrency/) | Find async/await, actor, Sendable patterns |
+| [search_conformances](search_conformances/) | Find types by protocol conformance (View, Codable, etc.) |
+
 ## How Tools Work
 
 MCP tools are invoked by AI agents (like Claude) through the Model Context Protocol. When you use Cupertino with Claude Desktop, Claude can call these tools to search and retrieve documentation.
