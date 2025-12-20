@@ -159,7 +159,6 @@ func swiftPackagesCatalogActivePackages() async throws {
 func priorityPackagesCatalogLoadsFromJSON() async throws {
     // Use bundled file for consistent test results (not user's selected-packages.json)
     await PriorityPackagesCatalog.setUseBundledOnly(true)
-    defer { Task { await PriorityPackagesCatalog.setUseBundledOnly(false) } }
 
     let stats = await PriorityPackagesCatalog.stats
     #expect(stats.totalPriorityPackages > 30, "Should have 30+ priority packages")
@@ -176,13 +175,14 @@ func priorityPackagesCatalogLoadsFromJSON() async throws {
     let expectedTotal = applePackages + ecosystemPackages
     #expect(stats.totalPriorityPackages == expectedTotal, "Total should equal sum")
     print("   ✅ Loaded \(stats.totalPriorityPackages) priority packages")
+
+    await PriorityPackagesCatalog.setUseBundledOnly(false)
 }
 
 @Test("PriorityPackagesCatalog has correct metadata")
 func priorityPackagesCatalogMetadata() async throws {
     // Use bundled file for consistent test results
     await PriorityPackagesCatalog.setUseBundledOnly(true)
-    defer { Task { await PriorityPackagesCatalog.setUseBundledOnly(false) } }
 
     let version = await PriorityPackagesCatalog.version
     let lastUpdated = await PriorityPackagesCatalog.lastUpdated
@@ -192,13 +192,14 @@ func priorityPackagesCatalogMetadata() async throws {
     #expect(!lastUpdated.isEmpty, "Last updated date should not be empty")
     #expect(!description.isEmpty, "Description should not be empty")
     print("   ✅ Version: \(version), Last updated: \(lastUpdated)")
+
+    await PriorityPackagesCatalog.setUseBundledOnly(false)
 }
 
 @Test("PriorityPackagesCatalog Apple packages are valid")
 func priorityPackagesCatalogApplePackages() async throws {
     // Use bundled file for consistent test results
     await PriorityPackagesCatalog.setUseBundledOnly(true)
-    defer { Task { await PriorityPackagesCatalog.setUseBundledOnly(false) } }
 
     let applePackages = await PriorityPackagesCatalog.applePackages
     #expect(applePackages.count > 25, "Should have 25+ Apple packages")
@@ -211,13 +212,14 @@ func priorityPackagesCatalogApplePackages() async throws {
     #expect(repos.contains("swift-testing"), "Should contain swift-testing")
 
     print("   ✅ Apple packages validated")
+
+    await PriorityPackagesCatalog.setUseBundledOnly(false)
 }
 
 @Test("PriorityPackagesCatalog ecosystem packages are valid")
 func priorityPackagesCatalogEcosystemPackages() async throws {
     // Use bundled file for consistent test results
     await PriorityPackagesCatalog.setUseBundledOnly(true)
-    defer { Task { await PriorityPackagesCatalog.setUseBundledOnly(false) } }
 
     let ecosystemPackages = await PriorityPackagesCatalog.ecosystemPackages
     #expect(!ecosystemPackages.isEmpty, "Should have ecosystem packages")
@@ -229,13 +231,14 @@ func priorityPackagesCatalogEcosystemPackages() async throws {
     #expect(fullNames.contains("pointfreeco/swift-composable-architecture"), "Should contain TCA")
 
     print("   ✅ Ecosystem packages validated")
+
+    await PriorityPackagesCatalog.setUseBundledOnly(false)
 }
 
 @Test("PriorityPackagesCatalog priority check works")
 func priorityPackagesCatalogPriorityCheck() async throws {
     // Use bundled file for consistent test results
     await PriorityPackagesCatalog.setUseBundledOnly(true)
-    defer { Task { await PriorityPackagesCatalog.setUseBundledOnly(false) } }
 
     // Test known priority packages
     let isSwiftPriority = await PriorityPackagesCatalog.isPriority(owner: "apple", repo: "swift")
@@ -251,23 +254,29 @@ func priorityPackagesCatalogPriorityCheck() async throws {
     #expect(!isRandomPriority, "random package should not be priority")
 
     print("   ✅ Priority check working correctly")
+
+    await PriorityPackagesCatalog.setUseBundledOnly(false)
 }
 
 @Test("PriorityPackagesCatalog package lookup works")
 func priorityPackagesCatalogPackageLookup() async throws {
     // Use bundled file for consistent test results
     await PriorityPackagesCatalog.setUseBundledOnly(true)
-    defer { Task { await PriorityPackagesCatalog.setUseBundledOnly(false) } }
 
-    let swiftPackage = await PriorityPackagesCatalog.package(named: "swift")
-    #expect(swiftPackage != nil, "Should find swift package")
-    #expect(swiftPackage?.repo == "swift", "Package repo should match")
+    do {
+        let swiftPackage = await PriorityPackagesCatalog.package(named: "swift")
+        #expect(swiftPackage != nil, "Should find swift package")
+        #expect(swiftPackage?.repo == "swift", "Package repo should match")
 
-    let vaporPackage = await PriorityPackagesCatalog.package(named: "vapor")
-    #expect(vaporPackage != nil, "Should find vapor package")
-    #expect(vaporPackage?.owner == "vapor", "Vapor owner should be vapor")
+        let vaporPackage = await PriorityPackagesCatalog.package(named: "vapor")
+        #expect(vaporPackage != nil, "Should find vapor package")
+        #expect(vaporPackage?.owner == "vapor", "Vapor owner should be vapor")
 
-    print("   ✅ Package lookup working correctly")
+        print("   ✅ Package lookup working correctly")
+    }
+
+    // Reset after test - must await to avoid race condition
+    await PriorityPackagesCatalog.setUseBundledOnly(false)
 }
 
 @Test("PriorityPackagesCatalog loads user file when available")

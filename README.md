@@ -413,9 +413,9 @@ make lint                   # Lint with SwiftLint
 ### Testing
 
 **Test Suite:**
-- 93 tests across 7 test suites
-- 100% pass rate
-- ~350 seconds duration (includes real network crawling)
+- 698 tests across 73 test suites
+- ~35 seconds duration
+- Includes unit tests, integration tests, and formatter tests
 
 **Test Categories:**
 - Web Crawl Tests - Real Apple documentation fetching

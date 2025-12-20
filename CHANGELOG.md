@@ -1,4 +1,4 @@
-## 0.8.0 (2025-12-19)
+## 0.8.0 (2025-12-20)
 
 ### Added
 - **Doctor Command Enhanced** - Package diagnostics (#81)
@@ -6,6 +6,8 @@
   - Shows downloaded README count
   - Warns about orphaned READMEs (packages no longer selected)
   - Displays priority package breakdown (Apple vs ecosystem)
+- **String Formatter Tests** - 34 unit tests for display formatting (#81)
+  - `StringFormatterTests.swift` covers truncation, markdown escaping, camelCase splitting
 
 ### Changed
 - **Code Quality Improvements** (#81)
@@ -15,12 +17,20 @@
 - **PriorityPackagesCatalog** - Made fields optional for TUI compatibility
   - `appleOfficial` tier now optional (TUI only saves ecosystem tier)
   - Stats fields `totalCriticalApplePackages` and `totalEcosystemPackages` now optional
+- **Search Result Formatting** (#81)
+  - Hierarchical result numbering (1.1, 1.2, 2.1, etc.)
+  - Source counts in headers: `## 1. Apple Documentation (20) 📚`
+  - Renamed `md` variable to `output` in formatters for clarity
 
 ### Fixed
 - **Package-docs fetch now reads user selections** (#107)
   - `cupertino fetch --type package-docs` now loads from `~/.cupertino/selected-packages.json`
   - Falls back to bundled `priority-packages.json` if user file doesn't exist
   - TUI package selections are now respected by fetch command
+- **Display Formatting Bugs** (#81)
+  - Double space artifacts ("Tab  bars" → "Tab bars")
+  - Smart title-casing (only lowercase first letters get uppercased)
+  - SwiftLint violations (line length, identifier names)
 
 ### Related Issues
 - Closes #81, #107
