@@ -202,41 +202,60 @@ actor MCPClient {
         print("📨 CLIENT → SERVER: initialize")
         print("-".repeating(80))
 
-        let request = MCPRequest(
-            jsonrpc: "2.0",
-            id: .int(nextMessageID()),
-            method: "initialize",
-            params: InitializeParams(
-                protocolVersion: MCPProtocolVersion,
-                capabilities: ClientCapabilities(
-                    experimental: nil,
-                    sampling: nil,
-                    roots: RootsCapability(listChanged: true)
-                ),
-                clientInfo: Implementation(name: "Mock AI Agent", version: "1.0.0")
+        // Try each supported version, starting with newest
+        var lastError: Error?
+        for version in MCPProtocolVersionsSupported {
+            let request = MCPRequest(
+                jsonrpc: "2.0",
+                id: .int(nextMessageID()),
+                method: "initialize",
+                params: InitializeParams(
+                    protocolVersion: version,
+                    capabilities: ClientCapabilities(
+                        experimental: nil,
+                        sampling: nil,
+                        roots: RootsCapability(listChanged: true)
+                    ),
+                    clientInfo: Implementation(name: "Mock AI Agent", version: "1.0.0")
+                )
             )
-        )
 
-        let response: InitializeResult = try await sendRequest(request) as InitializeResult
+            do {
+                let response: InitializeResult = try await sendRequest(request) as InitializeResult
 
-        print()
-        print("📬 SERVER → CLIENT: initialize response")
-        print("-".repeating(80))
-        logJSON(response)
-        print()
+                print()
+                print("📬 SERVER → CLIENT: initialize response")
+                print("-".repeating(80))
+                logJSON(response)
+                print()
 
-        print("✅ Initialized with server: \(response.serverInfo.name) v\(response.serverInfo.version)")
-        print("   Protocol Version: \(response.protocolVersion)")
-        print("   Capabilities:")
-        if let tools = response.capabilities.tools {
-            print("     - Tools: \(tools.listChanged ?? false ? "✓" : "✗")")
+                print("✅ Initialized with server: \(response.serverInfo.name) v\(response.serverInfo.version)")
+                print("   Protocol Version: \(response.protocolVersion)")
+                print("   Capabilities:")
+                if let tools = response.capabilities.tools {
+                    print("     - Tools: \(tools.listChanged ?? false ? "✓" : "✗")")
+                }
+                if let resources = response.capabilities.resources {
+                    let listChanged = resources.listChanged ?? false ? "✓" : "✗"
+                    let subscribe = resources.subscribe ?? false ? "✓" : "✗"
+                    print("     - Resources: \(listChanged) (subscribe: \(subscribe))")
+                }
+                print()
+                return
+            } catch let error as MCPClientError {
+                lastError = error
+                // Retry with older version if protocol/version error
+                if case let .serverError(message) = error,
+                   message.lowercased().contains("protocol") || message.lowercased().contains("version")
+                {
+                    print("⚠️  Version \(version) not supported, trying fallback...")
+                    continue
+                }
+                throw error
+            }
         }
-        if let resources = response.capabilities.resources {
-            let listChanged = resources.listChanged ?? false ? "✓" : "✗"
-            let subscribe = resources.subscribe ?? false ? "✓" : "✗"
-            print("     - Resources: \(listChanged) (subscribe: \(subscribe))")
-        }
-        print()
+
+        throw lastError ?? MCPClientError.serverError("No supported protocol version")
     }
 
     private func listTools() async throws {
