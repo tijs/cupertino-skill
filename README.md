@@ -1,8 +1,10 @@
-# 🍎📚 Cupertino
+# 🍎📚 Cupertino Skill
 
-**Apple Documentation Crawler & MCP Server**
+**Apple Documentation for AI Agents**
 
-A Swift-based tool to crawl, index, and serve Apple's developer documentation to AI agents via the Model Context Protocol (MCP).
+A Swift-based tool to crawl, index, and serve Apple's developer documentation to AI agents. Works as both an MCP server and a stateless CLI skill.
+
+> **Fork Note:** This is a fork of [mihaelamj/cupertino](https://github.com/mihaelamj/cupertino) with added support for agent skills. All original functionality is preserved.
 
 [![Swift 6.2+](https://img.shields.io/badge/Swift-6.2+-orange.svg)](https://swift.org)
 [![macOS 15+](https://img.shields.io/badge/macOS-15+-blue.svg)](https://www.apple.com/macos)
@@ -180,6 +182,63 @@ claude mcp add cupertino --scope user -- $(which cupertino)
 ```
 
 This registers Cupertino globally for all your projects. Claude Code will automatically have access to Apple documentation search.
+
+### Use as an Agent Skill (No Server Required)
+
+Cupertino can also be used as a stateless CLI skill without running an MCP server. This is useful for agents that support the [Agent Skills](https://agentskills.io) specification.
+
+**Setup:**
+
+1. Install cupertino and download the databases:
+```bash
+# Install via Homebrew or from source (see above)
+cupertino setup
+```
+
+2. Copy the skill definition to your project or global skills directory:
+```bash
+# For a single project
+mkdir -p .claude/skills/cupertino
+cp /path/to/cupertino-skill/.claude/skills/cupertino/SKILL.md .claude/skills/cupertino/
+
+# Or for global use with Claude Code
+mkdir -p ~/.claude/skills/cupertino
+cp /path/to/cupertino-skill/.claude/skills/cupertino/SKILL.md ~/.claude/skills/cupertino/
+```
+
+**How It Works:**
+
+The skill uses the CLI directly with JSON output, no server process needed:
+
+```bash
+# Search documentation
+cupertino search "SwiftUI View" --format json
+
+# Filter by source
+cupertino search "NavigationStack" --source apple-docs --format json
+cupertino search "button styles" --source samples --format json
+
+# Read a document
+cupertino read "apple-docs://swiftui/documentation_swiftui_view" --format json
+
+# List frameworks
+cupertino list-frameworks --format json
+
+# List sample projects
+cupertino list-samples --framework swiftui --format json
+```
+
+All commands support `--format json` for structured output that agents can parse.
+
+**Available Sources:**
+- `apple-docs` - Official Apple documentation (301,000+ pages)
+- `samples` - Apple sample code projects
+- `hig` - Human Interface Guidelines
+- `swift-evolution` - Swift Evolution proposals
+- `swift-org` - Swift.org documentation
+- `swift-book` - The Swift Programming Language book
+- `apple-archive` - Legacy programming guides
+- `packages` - Swift package documentation
 
 ### What You Get
 
@@ -554,6 +613,18 @@ MIT License - see [LICENSE](LICENSE) for details
 - Uses [swift-argument-parser](https://github.com/apple/swift-argument-parser) for CLI
 - Implements [Model Context Protocol](https://modelcontextprotocol.io) specification
 - Inspired by the need for offline Apple documentation access
+
+## Syncing with Upstream
+
+This fork tracks [mihaelamj/cupertino](https://github.com/mihaelamj/cupertino). To pull updates:
+
+```bash
+git remote add upstream https://github.com/mihaelamj/cupertino.git
+git fetch upstream
+git merge upstream/main
+```
+
+The skill additions are in `.claude/skills/` and won't conflict with upstream changes.
 
 ## Related Repositories
 
