@@ -187,23 +187,50 @@ This registers Cupertino globally for all your projects. Claude Code will automa
 
 Cupertino can also be used as a stateless CLI skill without running an MCP server. This is useful for agents that support the [Agent Skills](https://agentskills.io) specification.
 
-**Setup:**
+**Prerequisites:**
 
-1. Install cupertino and download the databases:
+Install cupertino and download the databases first:
 ```bash
-# Install via Homebrew or from source (see above)
+# Install via Homebrew or from source (see Installation above)
 cupertino setup
 ```
 
-2. Copy the skill definition to your project or global skills directory:
+**Option A: Install with OpenSkills (Recommended)**
+
+[OpenSkills](https://github.com/numman-ali/openskills) is a universal skills loader that works with Claude Code, Cursor, Windsurf, Aider, and other AI coding agents.
+
 ```bash
+# Install the cupertino skill from GitHub
+npx openskills install tijs/cupertino-skill
+
+# Sync to update AGENTS.md
+npx openskills sync
+```
+
+For global installation (available in all projects):
+```bash
+npx openskills install tijs/cupertino-skill --global
+```
+
+For multi-agent setups (installs to `.agent/skills/` instead of `.claude/skills/`):
+```bash
+npx openskills install tijs/cupertino-skill --universal
+```
+
+**Option B: Manual Installation**
+
+Copy the skill definition to your project or global skills directory:
+```bash
+# Clone this repo
+git clone https://github.com/tijs/cupertino-skill.git
+
 # For a single project
 mkdir -p .claude/skills/cupertino
-cp /path/to/cupertino-skill/.claude/skills/cupertino/SKILL.md .claude/skills/cupertino/
+cp cupertino-skill/.claude/skills/cupertino/SKILL.md .claude/skills/cupertino/
 
 # Or for global use with Claude Code
 mkdir -p ~/.claude/skills/cupertino
-cp /path/to/cupertino-skill/.claude/skills/cupertino/SKILL.md ~/.claude/skills/cupertino/
+cp cupertino-skill/.claude/skills/cupertino/SKILL.md ~/.claude/skills/cupertino/
 ```
 
 **How It Works:**
