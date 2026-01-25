@@ -59,7 +59,13 @@ The server will use default database paths:
 - Search DB: `~/.cupertino/search.db`
 - Samples DB: `~/.cupertino/sample-code/samples.db`
 
-### Use in Claude Desktop Config
+## MCP Client Configuration
+
+Cupertino uses **stdio transport** - MCP clients launch the server process automatically. You don't need to run the server manually.
+
+> **Note:** Examples use `/opt/homebrew/bin/cupertino` (Homebrew on Apple Silicon). Use `/usr/local/bin/cupertino` for Intel Macs or manual installs. Run `which cupertino` to find your path.
+
+### Claude Desktop
 
 **File:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 
@@ -67,12 +73,115 @@ The server will use default database paths:
 {
   "mcpServers": {
     "cupertino": {
-      "command": "/usr/local/bin/cupertino",
+      "command": "/opt/homebrew/bin/cupertino",
       "args": ["serve"]
     }
   }
 }
 ```
+
+### Claude Code
+
+```bash
+claude mcp add cupertino --scope user -- $(which cupertino)
+```
+
+### OpenAI Codex
+
+```bash
+codex mcp add cupertino -- $(which cupertino) serve
+```
+
+Or add to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.cupertino]
+command = "/opt/homebrew/bin/cupertino"
+args = ["serve"]
+```
+
+### Cursor
+
+**File:** `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global)
+
+```json
+{
+  "mcpServers": {
+    "cupertino": {
+      "command": "/opt/homebrew/bin/cupertino",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+### VS Code (GitHub Copilot)
+
+**File:** `.vscode/mcp.json`
+
+```json
+{
+  "servers": {
+    "cupertino": {
+      "type": "stdio",
+      "command": "/opt/homebrew/bin/cupertino",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+### Zed
+
+**File:** `settings.json`
+
+```json
+{
+  "context_servers": {
+    "cupertino": {
+      "command": "/opt/homebrew/bin/cupertino",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+### Windsurf
+
+**File:** `~/.codeium/windsurf/mcp_config.json`
+
+```json
+{
+  "mcpServers": {
+    "cupertino": {
+      "command": "/opt/homebrew/bin/cupertino",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+### opencode
+
+**File:** `opencode.jsonc`
+
+```json
+{
+  "mcp": {
+    "cupertino": {
+      "type": "local",
+      "command": ["/opt/homebrew/bin/cupertino", "serve"]
+    }
+  }
+}
+```
+
+### Other MCP Clients
+
+For other MCP clients, the general pattern is:
+- **Command:** Path to cupertino binary
+- **Args:** `["serve"]` (optional, serve is the default)
+- **Transport:** stdio (not HTTP)
 
 ## Server Output
 
