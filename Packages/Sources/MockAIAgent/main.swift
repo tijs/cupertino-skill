@@ -19,12 +19,18 @@ struct MockAIAgent {
         setbuf(stdout, nil)
         setbuf(stderr, nil)
 
+        // Handle --version flag
+        let args = CommandLine.arguments
+        if args.contains("--version") || args.contains("-v") {
+            print(Shared.Constants.App.version)
+            return
+        }
+
         print("🤖 Mock AI Agent Starting...")
         print("=".repeating(80))
         print()
 
         // Parse command line arguments
-        let args = CommandLine.arguments
         var serverCommand: [String]?
 
         if args.count > 1 {

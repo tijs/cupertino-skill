@@ -175,13 +175,110 @@ cupertino save
 
 ### Use with Claude Code
 
-If you're using [Claude Code](https://docs.anthropic.com/en/docs/claude-code), you can add Cupertino as an MCP server with a single command:
+If you're using [Claude Code](https://code.claude.com/docs/en/overview), you can add Cupertino as an MCP server with a single command:
 
 ```bash
 claude mcp add cupertino --scope user -- $(which cupertino)
 ```
 
 This registers Cupertino globally for all your projects. Claude Code will automatically have access to Apple documentation search.
+
+### Use with OpenAI Codex
+
+If you're using [OpenAI Codex](https://github.com/openai/codex), add Cupertino with:
+
+```bash
+codex mcp add cupertino -- $(which cupertino) serve
+```
+
+Or add directly to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.cupertino]
+command = "/opt/homebrew/bin/cupertino"  # Homebrew on Apple Silicon
+# command = "/usr/local/bin/cupertino"   # Intel Mac or manual install
+args = ["serve"]
+```
+
+> **Tip:** Run `which cupertino` to find your installation path.
+
+### Use with Cursor
+
+Add to `.cursor/mcp.json` in your project (or `~/.cursor/mcp.json` for global access):
+
+```json
+{
+  "mcpServers": {
+    "cupertino": {
+      "command": "/opt/homebrew/bin/cupertino",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+### Use with VS Code (GitHub Copilot)
+
+Add to `.vscode/mcp.json` in your workspace:
+
+```json
+{
+  "servers": {
+    "cupertino": {
+      "type": "stdio",
+      "command": "/opt/homebrew/bin/cupertino",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+### Use with Zed
+
+Add to your Zed `settings.json`:
+
+```json
+{
+  "context_servers": {
+    "cupertino": {
+      "command": "/opt/homebrew/bin/cupertino",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+### Use with Windsurf
+
+Add to `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "cupertino": {
+      "command": "/opt/homebrew/bin/cupertino",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+### Use with opencode
+
+Add to `opencode.jsonc`:
+
+```json
+{
+  "mcp": {
+    "cupertino": {
+      "type": "local",
+      "command": ["/opt/homebrew/bin/cupertino", "serve"]
+    }
+  }
+}
+```
+
+> **Note:** All examples use `/opt/homebrew/bin/cupertino` (Homebrew on Apple Silicon). Use `/usr/local/bin/cupertino` for Intel Macs or manual installs. Run `which cupertino` to find your path.
 
 ### Use as an Agent Skill (No Server Required)
 
@@ -621,7 +718,7 @@ For development setup, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Project Status
 
-**Version:** 0.9.0
+**Version:** 0.9.1
 **Status:** 🚧 Active Development
 
 - ✅ All core functionality working

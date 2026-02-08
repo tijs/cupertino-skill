@@ -1,3 +1,22 @@
+## 0.9.1 (2026-01-25)
+
+### Added
+- **MCP client configuration docs** - Added setup guides for multiple AI tools (#134, #137)
+  - OpenAI Codex (CLI and ~/.codex/config.toml)
+  - Cursor (.cursor/mcp.json)
+  - VS Code with GitHub Copilot (.vscode/mcp.json)
+  - Zed (settings.json)
+  - Windsurf (~/.codeium/windsurf/mcp_config.json)
+  - opencode (opencode.jsonc)
+- **Binary documentation** - Full docs for additional executables (#137)
+  - cupertino-tui: Terminal UI with 5 views documented
+  - mock-ai-agent: MCP testing tool with arguments documented
+  - cupertino-rel: Release tool with 6 subcommands and all options
+  - 48 new documentation files in docs/binaries/
+- **mock-ai-agent --version** - Added version flag support (#137)
+
+---
+
 ## 0.9.0 (2025-12-31)
 
 ### Changed
